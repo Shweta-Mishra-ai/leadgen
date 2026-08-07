@@ -154,6 +154,16 @@ leadgen-outreach --to client@company.com --lead-id 1
 
 ---
 
+## ⚡ Superpowers & Agent Skills Ecosystem (`superpowers.py`)
+
+Inspired by open-source agent frameworks ([`obra/superpowers-marketplace`](https://github.com/obra/superpowers-marketplace), [`coreyhaines31/marketingskills`](https://github.com/coreyhaines31/marketingskills), and [`gstack`](https://github.com/Shweta-Mishra-ai/gstack)):
+
+- **`TDD_VERIFIER`**: Runs automated runtime test checks before report delivery.
+- **`SYSTEMATIC_REVIEWER`**: Applies multi-pass peer review for zero AI filler, anti-"Dear" greetings, and SEO/AEO/GEO alignment.
+- **`GROWTH_STACK` (gstack)**: Profiles technical domain authority and API requirements for high-ticket clients.
+
+---
+
 ## 🚀 Setup & Execution
 
 ### 1. Installation

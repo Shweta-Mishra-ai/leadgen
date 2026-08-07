@@ -8,6 +8,8 @@ from leadgen.email_sender import send_email
 from leadgen.humanizer import generate_humanized_email
 from leadgen.storage import LeadStore
 
+from leadgen.superpowers import SuperpowerRegistry
+
 logger = logging.getLogger("leadgen.super_agent")
 
 
@@ -16,12 +18,14 @@ class SuperOutreachAgent:
     1. Research & Profiler Role: Analyzes lead intent and domain context.
     2. Marketing & Framework Role: Selects best copywriting framework (PAS / BAB / Direct).
     3. Quality Auditor & Humanizer Role: Strips AI filler, robotic phrases, and spam links.
-    4. Deliverability & Finder Role: Discovers recipient email & sends direct via Gmail.
+    4. Superpowers Reviewer Role: Applies systematic peer-review & TDD verification (obra/superpowers).
+    5. Deliverability & Finder Role: Discovers recipient email & sends direct via Gmail.
     """
 
     def __init__(self, settings: Settings, store: LeadStore):
         self.settings = settings
         self.store = store
+        self.superpowers = SuperpowerRegistry()
 
     def process_lead(
         self,
@@ -40,6 +44,9 @@ class SuperOutreachAgent:
         subject, body = generate_humanized_email(
             self.settings, title, snippet, client_name=client_name, framework=framework
         )
+
+        # Role 4: Superpowers Systematic Peer Review
+        subject, body, _passed = self.superpowers.apply_superpower_review(subject, body)
 
         # Role 4: Email Discovery & Deliverability Check
         target_email = recipient_email
