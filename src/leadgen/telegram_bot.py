@@ -160,16 +160,21 @@ class TelegramBot:
 
         elif command == "/followup":
             send_telegram_message(
-                self.bot_token, str(chat_id), "🔄 Processing automated 3-day follow-up sequences..."
-            )
-            from leadgen.followup import process_pending_followups
-            count = process_pending_followups(self.settings, self.store)
-            send_telegram_message(
                 self.bot_token,
                 str(chat_id),
-                f"✅ <b>Follow-Up Drip Processed!</b>\nSent <b>{count}</b> follow-up message(s).",
-                parse_mode="HTML",
+                "🔄 Running 3-stage follow-up drip (Day 3 → Day 7 → Day 14)...",
             )
+            from leadgen.followup import process_pending_followups
+            results = process_pending_followups(self.settings, self.store)
+            total = sum(results.values())
+            msg = (
+                f"✅ <b>Follow-Up Drip Complete!</b>\n\n"
+                f"📅 <b>Day 3  (Stage 1):</b> {results.get('stage_1', 0)} sent\n"
+                f"📅 <b>Day 7  (Stage 2):</b> {results.get('stage_2', 0)} sent\n"
+                f"📅 <b>Day 14 (Stage 3):</b> {results.get('stage_3', 0)} sent\n\n"
+                f"<b>Total:</b> {total} follow-up email(s) sent."
+            )
+            send_telegram_message(self.bot_token, str(chat_id), msg, parse_mode="HTML")
 
         elif command == "/super":
             args_list = args.split()

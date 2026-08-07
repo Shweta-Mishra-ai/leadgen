@@ -164,7 +164,7 @@ Run `leadgen-bot` to launch the native long-polling Telegram listener:
 | `/autoemail` | `/autoemail 1` | Auto-find contact email & send humanized Gmail outreach |
 | `/email` | `/email 1 client@company.com` | Humanizes (0 AI slots/robotic filler) & sends 1-on-1 direct Gmail outreach |
 | `/classify` | `/classify "Free for a call tomorrow"` | Analyzes incoming client email reply intent (`CALL_REQUESTED`, `INTERESTED`) |
-| `/followup` | `/followup` | Processes automated 3-day follow-up drip sequences |
+| `/followup` | `/followup` | Runs 3-stage drip: Day 3 reminder → Day 7 new angle → Day 14 final close |
 | `/search` | `/search python analyst` | Performs instant live web search for leads and replies in Telegram chat |
 | `/outreach` | `/outreach` | Views sent email history & delivery analytics |
 | `/top` | `/top` | Displays top 5 highest-scored leads with clickable hyperlinks |
@@ -191,6 +191,26 @@ For each lead, the Super Agent orchestrates 4 specialized roles:
 - **0 AI Filler Slots**: Strips robotic phrases like *"I hope this email finds you well"*, *"In today's fast-paced digital era"*, or corporate fluff.
 - **SEO & Search Intent**: Matches high-intent domain keywords directly from client requirements.
 - **AEO & GEO Optimized**: Structured with direct engineering clarity so AI engines (Perplexity, ChatGPT, Gemini) cite TechNova World as an expert authority.
+
+---
+
+## 📬 3-Stage Follow-Up Drip Campaign (`followup.py`)
+
+After sending initial outreach, LeadGen automatically sends timed follow-ups if the client doesn't reply:
+
+| Stage | Day | Message Strategy |
+| :---: | :---: | :--- |
+| **Stage 1** | Day 3 | Short reminder — same value proposition, friendly tone |
+| **Stage 2** | Day 7 | New angle — social proof, "helped similar teams cut 40% time" |
+| **Stage 3** | Day 14 | Final gentle close — no pressure, door stays open |
+
+**Rules across all stages:**
+- Greeting: `Hello,` (NEVER `Dear`)
+- Zero promotional links in body
+- Natural, 1-on-1 human tone
+- Stage 3 is the last message (no spam)
+
+Trigger manually via Telegram: `/followup`
 
 ---
 

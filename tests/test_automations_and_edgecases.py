@@ -3,7 +3,12 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 from leadgen.config import Settings
-from leadgen.followup import generate_followup_message, process_pending_followups
+from leadgen.followup import (
+    FOLLOWUP_SCHEDULE,
+    _stage_message,
+    generate_followup_message,
+    process_pending_followups,
+)
 from leadgen.reply_classifier import classify_email_reply
 from leadgen.tech_profiler import detect_lead_tech_stack
 from leadgen.webhook import send_lead_webhook
@@ -50,18 +55,51 @@ def test_detect_lead_tech_stack():
     assert "Cloud/DevOps" in stack
 
 
-def test_generate_followup_message():
-    subj, body = generate_followup_message("Shweta", "John", "Build AI Agent")
-    assert "Build AI Agent" in subj or "Build AI Agent" in body
+# --- Multi-stage followup tests ---
+
+def test_followup_schedule_has_3_stages():
+    assert len(FOLLOWUP_SCHEDULE) == 3
+    days = [d for d, _ in FOLLOWUP_SCHEDULE]
+    stages = [s for _, s in FOLLOWUP_SCHEDULE]
+    assert days == [3, 7, 14]
+    assert stages == [1, 2, 3]
+
+
+def test_stage_1_message_no_pressure():
+    subj, body = _stage_message("Shweta", "Build AI Agent", stage=1)
+    assert "Build AI Agent" in body
+    assert "Hello," in body
+    assert "Dear" not in body
+
+
+def test_stage_2_message_new_angle():
+    subj, body = _stage_message("Shweta", "Automation Pipeline", stage=2)
+    assert "Automation Pipeline" in body
+    assert "40%" in body  # social proof line
+    assert "Dear" not in body
+
+
+def test_stage_3_message_final_close():
+    subj, body = _stage_message("Shweta", "Data Scraping", stage=3)
+    assert "last follow-up" in body.lower()
+    assert "no pressure" in body.lower()
+    assert "Dear" not in body
+
+
+def test_generate_followup_message_with_name():
+    subj, body = generate_followup_message("Shweta", "John", "Build AI Agent", stage=1)
     assert "Hello John," in body
     assert "Dear" not in body
 
 
-def test_process_pending_followups():
+def test_generate_followup_message_stage3():
+    subj, body = generate_followup_message("Shweta", "", "Data Pipeline", stage=3)
+    assert "last follow-up" in body.lower()
+
+
+def test_process_pending_followups_no_credentials():
     settings = Settings(_env_file=None)
     store = MagicMock()
-    store.all_outreach_logs.return_value = [
-        {"lead_url": "https://example.com", "recipient_email": "client@domain.com", "status": "sent"}
-    ]
-    sent_count = process_pending_followups(settings, store)
-    assert sent_count == 0  # No gmail credentials set
+    store.get_pending_followups.return_value = []
+    results = process_pending_followups(settings, store)
+    assert results == {"stage_1": 0, "stage_2": 0, "stage_3": 0}

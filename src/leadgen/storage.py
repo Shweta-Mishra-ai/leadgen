@@ -38,7 +38,8 @@ CREATE TABLE IF NOT EXISTS outreach_logs (
     subject TEXT NOT NULL,
     body TEXT NOT NULL,
     sent_at TEXT NOT NULL,
-    status TEXT NOT NULL
+    status TEXT NOT NULL,
+    followup_stage INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_outreach_sent_at ON outreach_logs(sent_at DESC);
 """
@@ -112,17 +113,52 @@ class LeadStore:
             return dict(row) if row else None
 
     def log_outreach(
-        self, lead_url: str, recipient_email: str, subject: str, body: str, status: str = "sent"
+        self,
+        lead_url: str,
+        recipient_email: str,
+        subject: str,
+        body: str,
+        status: str = "sent",
+        followup_stage: int = 0,
     ) -> None:
         from datetime import UTC, datetime
         now = datetime.now(UTC).isoformat()
         with self._connect() as conn:
             conn.execute(
-                """INSERT INTO outreach_logs (lead_url, recipient_email, subject, body, sent_at, status)
-                   VALUES (?, ?, ?, ?, ?, ?)""",
-                (lead_url, recipient_email, subject, body, now, status),
+                """INSERT INTO outreach_logs
+                   (lead_url, recipient_email, subject, body, sent_at, status, followup_stage)
+                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                (lead_url, recipient_email, subject, body, now, status, followup_stage),
             )
             conn.commit()
+
+    def get_pending_followups(self, days_since: int, stage: int) -> list[dict]:
+        """Return outreach logs eligible for a specific follow-up stage.
+
+        A lead is eligible when:
+        - Its last outreach status is 'sent' (not replied/unsubscribed)
+        - Its current followup_stage == stage - 1
+        - It was last sent >= days_since days ago
+        """
+        from datetime import UTC, datetime, timedelta
+        cutoff = (datetime.now(UTC) - timedelta(days=days_since)).isoformat()
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT ol.*
+                FROM outreach_logs ol
+                INNER JOIN (
+                    SELECT lead_url, MAX(sent_at) AS last_sent
+                    FROM outreach_logs
+                    GROUP BY lead_url
+                ) latest ON ol.lead_url = latest.lead_url AND ol.sent_at = latest.last_sent
+                WHERE ol.status = 'sent'
+                  AND ol.followup_stage = ?
+                  AND ol.sent_at <= ?
+                """,
+                (stage - 1, cutoff),
+            ).fetchall()
+            return [dict(r) for r in rows]
 
     def all_outreach_logs(self) -> list[dict]:
         with self._connect() as conn:
