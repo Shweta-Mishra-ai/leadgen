@@ -228,6 +228,8 @@ Leads are fetched across 5 specialized categories:
 
 ---
 
+---
+
 ## 📈 Excel Report Formatting (`report.py`)
 
 - **Dark Visual Styling**: `#1E293B` dark headers with white bold typography.
@@ -237,6 +239,101 @@ Leads are fetched across 5 specialized categories:
 
 ---
 
+## 🔗 n8n Integration — Render.com Deployment (Free, 24/7)
+
+LeadGen automatically pushes high-score leads to a **self-hosted n8n** instance via webhook. No n8n account needed — deploy it yourself on Render.com for free.
+
+### Architecture
+```
+LeadGen Pipeline → WEBHOOK_URL → n8n (Render.com) → Slack / Google Sheets / Gmail / Discord
+```
+
+### Quick Deploy to Render.com
+
+1. Go to **https://render.com** → **New Web Service** → **Deploy an existing image**
+2. Image: `docker.n8n.io/n8nio/n8n` | Port: `5678` | Plan: **Free**
+3. Set these Environment Variables in Render dashboard:
+
+| Variable | Value |
+| :--- | :--- |
+| `N8N_HOST` | `your-service.onrender.com` |
+| `N8N_PROTOCOL` | `https` |
+| `N8N_PORT` | `5678` |
+| `N8N_BASIC_AUTH_ACTIVE` | `true` |
+| `N8N_BASIC_AUTH_USER` | `admin` |
+| `N8N_BASIC_AUTH_PASSWORD` | `YourStrongPassword` |
+| `WEBHOOK_URL` | `https://your-service.onrender.com/` |
+| `GENERIC_TIMEZONE` | `Asia/Kolkata` |
+
+4. After deploy, open n8n → **New Workflow** → Add **Webhook** node → copy URL
+5. Add to LeadGen `.env`:
+```env
+WEBHOOK_URL=https://your-service.onrender.com/webhook/lead-alert
+```
+
+> 📁 Full deployment guide: [`n8n/RENDER_DEPLOY.md`](n8n/RENDER_DEPLOY.md) | Docker Compose: [`n8n/docker-compose.yml`](n8n/docker-compose.yml)
+
+### Webhook Payload Example
+```json
+{
+  "event": "high_score_lead_found",
+  "timestamp": "2026-08-07T11:00:00Z",
+  "lead": {
+    "title": "Need Python dev for AI automation",
+    "score": 92,
+    "email_found": "client@company.com",
+    "tech_stack": ["Python", "AI/LLM", "Cloud/DevOps"]
+  }
+}
+```
+
+### n8n Node variables
+- `{{ $json.lead.title }}` → Lead title
+- `{{ $json.lead.score }}` → Score number
+- `{{ $json.lead.email_found }}` → Client email
+- `{{ $json.lead.tech_stack }}` → Tech stack array
+
+---
+
+## ⏰ UptimeRobot — Keep Render.com n8n Awake (Free)
+
+Render free tier sleeps after 15 min of no traffic. UptimeRobot pings it every 5 minutes.
+
+1. Sign up free at **https://uptimerobot.com**
+2. **Add New Monitor** → Type: `HTTP(s)`
+3. URL: `https://your-service.onrender.com`
+4. Interval: **5 minutes**
+5. Click **Create Monitor** ✅
+
+n8n will now stay alive 24/7 at zero cost.
+
+---
+
+## 📧 Email Sending Test (`leadgen-test-email`)
+
+Before sending real outreach, test your Gmail setup:
+
+```bash
+# Test SMTP connection only (no email sent)
+leadgen-test-email
+
+# Send a live test email to yourself
+leadgen-test-email --to your_email@gmail.com
+```
+
+### Gmail App Password Setup
+1. Go to `https://myaccount.google.com/security` → Enable **2-Step Verification**
+2. Go to `https://myaccount.google.com/apppasswords`
+3. Select **Mail** → Generate 16-character password
+4. Add to `.env`:
+```env
+GMAIL_ADDRESS=your_email@gmail.com
+GMAIL_APP_PASSWORD=xxxx xxxx xxxx xxxx
+```
+
+---
+
 ## 📄 License & Confidentiality
 
 This project is protected by the **Proprietary & Confidential License** — Copyright (c) 2026 **TechNova World (Shweta Mishra)**. All rights reserved. See [`LICENSE.md`](LICENSE.md) for full terms.
+
