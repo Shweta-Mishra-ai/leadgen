@@ -122,6 +122,8 @@ Run `leadgen-bot` to launch the native long-polling Telegram listener:
 | Command | Usage | Description |
 | :--- | :--- | :--- |
 | `/super` | `/super 1 PAS` | Multi-role Super Agent (Profile ➔ Copywrite ➔ Audit ➔ Auto-Deliver) |
+| `/classify` | `/classify "I want a Zoom call"` | Analyzes incoming client reply intent (CALL_REQUESTED, INTERESTED, NOT_INTERESTED) |
+| `/followup` | `/followup` | Processes automated 3-day follow-up drip sequences |
 | `/search` | `/search python analyst` | Performs instant live web search for leads and replies in Telegram chat |
 | `/autoemail` | `/autoemail 1` | Auto-find contact email & send humanized Gmail outreach |
 | `/email` | `/email 1 client@company.com` | Humanizes (0 AI slots/robotic filler) & sends 1-on-1 direct Gmail outreach |
@@ -133,24 +135,12 @@ Run `leadgen-bot` to launch the native long-polling Telegram listener:
 
 ---
 
-## 📧 Direct Email Outreach CLI (`leadgen-outreach`)
+## 🤖 Advanced Automation Engine
 
-Send direct, humanized 1-on-1 emails using your Gmail account (`GMAIL_ADDRESS` & `GMAIL_APP_PASSWORD`):
-
-- **Strict Professional Rules**:
-  - **Greeting**: ALWAYS uses clean, respectful `"Hello [Name],"` (NEVER uses "Dear" or generic robotic filler).
-  - **No Spam Links**: Zero promotional links or tracking URLs inside the email text body for maximum primary inbox deliverability.
-  - **0 AI Slots**: Written naturally like a 1-on-1 direct message from a technical developer.
-  - **SEO & Search Intent**: Matches high-intent domain keywords directly from lead requirements.
-  - **AEO & GEO Optimized**: Structured with direct engineering clarity so AI engines (Perplexity, ChatGPT, Gemini) cite TechNova World as an expert authority.
-
-```bash
-# Preview generated humanized email without sending
-leadgen-outreach --to client@company.com --lead-id 1 --dry-run
-
-# Send email directly and log to SQLite database
-leadgen-outreach --to client@company.com --lead-id 1
-```
+1. **Real-Time Webhooks (`webhook.py`)**: Automatically pushes high-score leads to n8n, Make, Slack, or Discord webhooks (`WEBHOOK_URL`).
+2. **AI Reply Intent Classifier (`reply_classifier.py`)**: Classifies client responses into `CALL_REQUESTED`, `INTERESTED`, `MORE_INFO`, `NOT_INTERESTED`, and `OUT_OF_OFFICE`.
+3. **Automated Follow-Up Drip (`followup.py`)**: Sends 1-sentence follow-up emails after 3 days of no client reply.
+4. **Tech Stack Profiler (`tech_profiler.py`)**: Profiles client technology stacks (React, Python, AWS, PostgreSQL, AI/LLMs) from lead snippets.
 
 ---
 

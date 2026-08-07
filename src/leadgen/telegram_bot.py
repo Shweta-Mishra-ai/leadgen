@@ -36,9 +36,11 @@ class TelegramBot:
                 "🤖 <b>LeadGen Interactive Telegram Bot</b>\n\n"
                 "Available Commands:\n"
                 "• <b>/super &lt;lead_id&gt; [PAS/BAB/DIRECT]</b> — Multi-role Super Agent (Profile ➔ Copywrite ➔ Audit ➔ Deliver)\n"
-                "• <b>/search &lt;keyword&gt;</b> — Instant web search for leads\n"
                 "• <b>/autoemail &lt;lead_id&gt;</b> — Auto-find contact email & send humanized Gmail outreach\n"
                 "• <b>/email &lt;lead_id&gt; &lt;recipient_email&gt;</b> — Send humanized, 1-on-1 personalized Gmail outreach\n"
+                "• <b>/classify &lt;reply_text&gt;</b> — Classify incoming email reply intent\n"
+                "• <b>/followup</b> — Process automated follow-up drip sequence\n"
+                "• <b>/search &lt;keyword&gt;</b> — Instant web search for leads\n"
                 "• <b>/outreach</b> — View outreach history & analytics\n"
                 "• <b>/stats</b> — View lead database statistics category-wise\n"
                 "• <b>/top</b> — Get top 5 highest scored leads\n"
@@ -133,6 +135,41 @@ class TelegramBot:
                     f"   <b>Status:</b> <code>{log['status']}</code> | <i>{log['sent_at'][:10]}</i>\n"
                 )
             send_telegram_message(self.bot_token, str(chat_id), "\n".join(lines), parse_mode="HTML")
+
+        elif command == "/classify":
+            if not args:
+                send_telegram_message(
+                    self.bot_token,
+                    str(chat_id),
+                    "⚠️ Usage: <code>/classify &lt;client reply text&gt;</code>",
+                    parse_mode="HTML",
+                )
+                return
+
+            from leadgen.reply_classifier import classify_email_reply
+            res = classify_email_reply(self.settings, args)
+            intent = res.get("intent", "INTERESTED")
+            summary = res.get("summary", "")
+
+            msg = (
+                f"🧠 <b>Client Email Intent Classified</b>\n\n"
+                f"<b>Intent Label:</b> <code>{intent}</code>\n"
+                f"<b>Summary:</b> {html.escape(summary)}"
+            )
+            send_telegram_message(self.bot_token, str(chat_id), msg, parse_mode="HTML")
+
+        elif command == "/followup":
+            send_telegram_message(
+                self.bot_token, str(chat_id), "🔄 Processing automated 3-day follow-up sequences..."
+            )
+            from leadgen.followup import process_pending_followups
+            count = process_pending_followups(self.settings, self.store)
+            send_telegram_message(
+                self.bot_token,
+                str(chat_id),
+                f"✅ <b>Follow-Up Drip Processed!</b>\nSent <b>{count}</b> follow-up message(s).",
+                parse_mode="HTML",
+            )
 
         elif command == "/super":
             args_list = args.split()

@@ -32,6 +32,7 @@ class Settings(BaseSettings):
 
     telegram_bot_token: str | None = Field(default=None, alias="TELEGRAM_BOT_TOKEN")
     telegram_chat_id: str | None = Field(default=None, alias="TELEGRAM_CHAT_ID")
+    webhook_url: str | None = Field(default=None, alias="WEBHOOK_URL")
 
     # NOTE: Groq (console.groq.com) is NOT the same as Grok/xAI (console.x.ai).
     # Groq is a fast-inference host for open models (Llama, etc.) — free tier,
