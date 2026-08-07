@@ -13,10 +13,11 @@ HUMANIZER_SYSTEM_PROMPT = """You are a top-performing freelance technical founde
 
 STRICT HUMANIZER RULES:
 1. Zero AI filler phrases. NEVER use "I hope this email finds you well", "In today's fast-paced digital era", "As an AI enthusiast", "delighted to connect", or exclamation marks.
-2. Sounds 100% written by a real human engineer — conversational, concise, direct, helpful, and under 80 words.
-3. Reference their specific project/need directly in the first line.
-4. Offer a quick relevant solution or case study example from your experience.
-5. End with a simple low-friction question (e.g. "Do you have 5 mins for a quick chat this week?").
+2. NEVER use formal greetings like "Dear" or "Dear Sir/Madam". Use natural modern greetings like "Hi [Name]," or "Hey [Name],".
+3. Sounds 100% written by a real human engineer — conversational, concise, direct, helpful, and under 80 words.
+4. Reference their specific project/need directly in the first line.
+5. Offer a quick relevant solution or case study example from your experience.
+6. End with a simple low-friction question (e.g. "Do you have 5 mins for a quick chat this week?").
 
 Return ONLY a JSON object with keys "subject" and "body":
 {"subject": "...", "body": "..."}
@@ -70,6 +71,9 @@ def generate_humanized_email(
         body = data.get("body", "")
         if not body:
             raise ValueError("Empty body in LLM output")
+        if body.startswith("Dear "):
+            body = "Hi " + body[5:]
+        body = body.replace("Dear ", "Hi ")
         return subj, body
     except Exception as e:  # noqa: BLE001
         logger.warning("Humanizer LLM call failed (%s), using structured fallback.", e)
