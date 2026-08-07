@@ -69,6 +69,12 @@ NOISE_DOMAINS = {
     # blog/media/tutorial sites that match keywords without hiring intent
     "medium.com", "dev.to", "github.com", "youtube.com", "coursera.org",
     "udemy.com", "substack.com", "arxiv.org", "towardsdatascience.com",
+    # big-vendor developer-relations blogs — content marketing, not leads.
+    # Found via a real /autoemail run: developer.ibm.com's "Token
+    # optimization" article scored as a lead and the email finder then
+    # guessed a fabricated "contact@developer.ibm.com" for it.
+    "developer.ibm.com", "aws.amazon.com", "cloud.google.com",
+    "azure.microsoft.com", "developers.google.com", "engineering.fb.com",
 }
 
 # Listicles, vendor docs, and "how to" guides match keywords well but
