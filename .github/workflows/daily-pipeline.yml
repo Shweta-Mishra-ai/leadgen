@@ -1,0 +1,57 @@
+name: Daily Lead Pipeline
+
+on:
+  schedule:
+    - cron: '30 4 * * *'   # 10:00 AM IST daily (cron runs in UTC)
+  workflow_dispatch:        # manual trigger from the Actions tab
+
+jobs:
+  run-pipeline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: 'pip'
+
+      - name: Install package
+        run: pip install -e .
+
+      - name: Run lead-generation pipeline
+        env:
+          XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+          APIFY_API_TOKEN: ${{ secrets.APIFY_API_TOKEN }}
+          APIFY_TWITTER_COOKIE: ${{ secrets.APIFY_TWITTER_COOKIE }}
+          REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
+          REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
+          REDDIT_USER_AGENT: ${{ secrets.REDDIT_USER_AGENT }}
+        run: leadgen-run
+
+      - name: Generate + deliver report
+        env:
+          XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: leadgen-report
+
+      - name: Commit updated database (so tomorrow's run doesn't repeat leads)
+        run: |
+          git config user.name "leadgen-bot"
+          git config user.email "actions@github.com"
+          git add -f leads.db leads.csv || true
+          git commit -m "Daily lead update $(date -u +%Y-%m-%d)" || echo "nothing to commit"
+          git push || echo "nothing to push"
+
+      - name: Upload report as workflow artifact (backup to Telegram)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: leads-report
+          path: leads_report_*.xlsx
+          retention-days: 30
