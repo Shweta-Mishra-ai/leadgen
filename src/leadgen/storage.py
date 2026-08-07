@@ -14,6 +14,7 @@ import hashlib
 import os
 import sqlite3
 from contextlib import contextmanager
+from typing import ClassVar
 
 from leadgen.models import ScoredLead
 
@@ -80,9 +81,23 @@ class LeadStore:
         finally:
             conn.close()
 
+    # (table, column, DDL to add it) — CREATE TABLE IF NOT EXISTS only
+    # covers tables that don't exist yet; a DB file created before a
+    # column was added to SCHEMA keeps its old shape forever otherwise.
+    # This bit for real: leads.db committed to the repo predates
+    # `followup_stage`, and log_outreach() crashed with "no column named
+    # followup_stage" on its first real invocation.
+    _COLUMN_MIGRATIONS: ClassVar[list[tuple[str, str, str]]] = [
+        ("outreach_logs", "followup_stage", "INTEGER NOT NULL DEFAULT 0"),
+    ]
+
     def _init_schema(self):
         with self._connect() as conn:
             conn.executescript(SCHEMA)
+            for table, column, ddl in self._COLUMN_MIGRATIONS:
+                existing = {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
+                if column not in existing:
+                    conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}")
 
     def insert_new(self, leads: list[ScoredLead]) -> int:
         """Insert leads, skipping any whose URL was already seen.
