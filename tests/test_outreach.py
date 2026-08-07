@@ -39,9 +39,9 @@ def test_humanizer_replaces_dear_if_returned_by_llm():
     settings = Settings(_env_file=None)
     mock_client = MagicMock()
     mock_client.chat.completions.create.return_value.choices[0].message.content = (
-        '{"subject": "Hi John", "body": "Dear John, I saw your post."}'
+        '{"subject": "Hello John", "body": "Dear John, I saw your post."}'
     )
     with patch("leadgen.humanizer._get_draft_client_and_model", return_value=(mock_client, "grok-2-latest")):
         _subj, body = generate_humanized_email(settings, "Need Dev", "Looking for dev")
     assert "Dear" not in body
-    assert "Hi John" in body
+    assert "Hello John" in body

@@ -9,15 +9,16 @@ from leadgen.report import _get_draft_client_and_model
 
 logger = logging.getLogger("leadgen.humanizer")
 
-HUMANIZER_SYSTEM_PROMPT = """You are a top-performing freelance technical founder writing a 1-on-1 cold email reply to a potential client opportunity.
+HUMANIZER_SYSTEM_PROMPT = """You are a top-performing freelance technical founder writing a genuine, professional 1-on-1 cold email reply to a potential client opportunity.
 
 STRICT HUMANIZER RULES:
 1. Zero AI filler phrases. NEVER use "I hope this email finds you well", "In today's fast-paced digital era", "As an AI enthusiast", "delighted to connect", or exclamation marks.
-2. NEVER use formal greetings like "Dear" or "Dear Sir/Madam". Use natural modern greetings like "Hi [Name]," or "Hey [Name],".
-3. Sounds 100% written by a real human engineer — conversational, concise, direct, helpful, and under 80 words.
-4. Reference their specific project/need directly in the first line.
-5. Offer a quick relevant solution or case study example from your experience.
-6. End with a simple low-friction question (e.g. "Do you have 5 mins for a quick chat this week?").
+2. NEVER use formal greetings like "Dear" or "Dear Sir/Madam". ALWAYS use a professional, respectful greeting starting with "Hello [Name]," or "Hello,".
+3. NO promotional links, tracking URLs, or spam links inside the email body. Keep it a clean 1-on-1 text email.
+4. Sounds 100% written by a real human engineer — conversational, concise, direct, helpful, and under 80 words.
+5. Reference their specific project/need directly in the first line.
+6. Offer a quick relevant solution or case study example from your experience.
+7. End with a simple low-friction question (e.g. "Do you have 5 mins for a quick chat this week?").
 
 Return ONLY a JSON object with keys "subject" and "body":
 {"subject": "...", "body": "..."}
@@ -36,7 +37,7 @@ def generate_humanized_email(
         # Fallback template if no LLM key is set
         subj = f"Quick question re: {title[:40]}"
         body = (
-            f"Hi {client_name or 'there'},\n\n"
+            f"Hello {client_name or 'there'},\n\n"
             f"Saw your post regarding '{title}'. I build custom automation & tech solutions at TechNova World "
             f"and recently worked on something similar.\n\n"
             f"Would love to help you get this set up cleanly. Are you free for a quick chat this week?\n\n"
@@ -72,14 +73,16 @@ def generate_humanized_email(
         if not body:
             raise ValueError("Empty body in LLM output")
         if body.startswith("Dear "):
-            body = "Hi " + body[5:]
-        body = body.replace("Dear ", "Hi ")
+            body = "Hello " + body[5:]
+        elif body.startswith("Hi "):
+            body = "Hello " + body[3:]
+        body = body.replace("Dear ", "Hello ").replace("Hi ", "Hello ")
         return subj, body
     except Exception as e:  # noqa: BLE001
         logger.warning("Humanizer LLM call failed (%s), using structured fallback.", e)
         subj = f"Quick note regarding: {title[:40]}"
         body = (
-            f"Hi {client_name or 'there'},\n\n"
+            f"Hello {client_name or 'there'},\n\n"
             f"Came across your requirement for '{title}'. We specialize in building custom AI, automation, and software solutions at TechNova World.\n\n"
             f"Happy to walk you through a quick demo of how we handle this. Do you have 5 minutes to connect?\n\n"
             f"Best regards,\n{settings.sender_name}"

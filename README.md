@@ -135,6 +135,11 @@ Run `leadgen-bot` to launch the native long-polling Telegram listener:
 
 Send direct, humanized 1-on-1 emails using your Gmail account (`GMAIL_ADDRESS` & `GMAIL_APP_PASSWORD`):
 
+- **Strict Professional Rules**:
+  - **Greeting**: ALWAYS uses clean, respectful `"Hello [Name],"` (NEVER uses "Dear" or generic robotic filler).
+  - **No Spam Links**: Zero promotional links or tracking URLs inside the email text body for maximum primary inbox deliverability.
+  - **0 AI Slots**: Written naturally like a 1-on-1 direct message from a technical developer.
+
 ```bash
 # Preview generated humanized email without sending
 leadgen-outreach --to client@company.com --lead-id 1 --dry-run
