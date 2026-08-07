@@ -32,6 +32,10 @@ NICHE_KEYWORDS = [
     "llm cost optimization", "reduce llm cost", "token optimization",
     "genai engineer", "ai automation freelancer", "generative ai consultant",
     "ai agent developer",
+    # Workflow & Process Automation (n8n, Zapier, Make, Python)
+    "workflow automation freelancer", "n8n automation developer",
+    "zapier automation expert", "make.com automation", "business process automation",
+    "python script automation", "web scraping automation", "ai workflow automation",
     # Freelance Writing
     "freelance writer", "content writer", "technical writer", "copywriter",
     "writing freelancer", "content writing contract",

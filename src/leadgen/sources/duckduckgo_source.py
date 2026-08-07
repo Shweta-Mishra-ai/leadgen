@@ -7,6 +7,9 @@ from leadgen.sources.base import LeadSource
 logger = logging.getLogger("leadgen.sources.duckduckgo")
 
 FIXED_TERMS = [
+    "hiring workflow automation freelancer n8n zapier make",
+    "looking for python automation script developer",
+    "need business process automation consultant",
     "hiring freelance content writer technical writer",
     "hiring freelance data analyst python sql",
     "looking for mobile app developer react native flutter",
