@@ -124,7 +124,7 @@ class TelegramBot:
                 send_telegram_message(
                     self.bot_token, str(chat_id), f"✅ Report generated: <code>{report_path}</code>"
                 )
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 send_telegram_message(
                     self.bot_token, str(chat_id), f"❌ Report generation failed: {e}"
                 )

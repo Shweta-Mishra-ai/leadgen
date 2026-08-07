@@ -1,114 +1,155 @@
-# LeadGen - Multi-Category Client Lead Generation Pipeline & Telegram Bot
+# LeadGen - Enterprise Lead Generation Pipeline & Interactive Telegram Bot
 
-An enterprise-grade, multi-source freelance and client lead generation pipeline designed for high-value client acquisition. 
+![CI](https://github.com/Shweta-Mishra-ai/leadgen/actions/workflows/ci.yml/badge.svg)
+![Daily Lead Pipeline](https://github.com/Shweta-Mishra-ai/leadgen/actions/workflows/daily-pipeline.yml/badge.svg)
+![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)
+![Code Style: Ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)
+![License: Proprietary](https://img.shields.io/badge/license-Proprietary%20%26%20Confidential-red.svg)
 
-Finds live client leads across **5 core categories** (Automation, Freelance Writing, Data Analysis & Engineering, App Development & Sales, and AI/GenAI), scores leads against genuine hiring intent, filters out web noise/listicles, generates AI outreach drafts, formats reports with clickable Excel hyperlinks, and delivers daily interactive summaries to Telegram.
+An automated, multi-source client lead generation pipeline built for **TechNova World**. 
 
----
-
-## 🌟 Key Features
-
-- **5 Target Lead Categories**:
-  1. ⚡ **Workflow & Process Automation**: n8n, Zapier, Make.com, Python scripts, web scrapers.
-  2. ✍️ **Freelance Writing & Copywriting**: Technical writing, API docs, copywriting, content marketing.
-  3. 📊 **Data Analysis & Engineering**: Python data science, SQL analytics, Power BI, Snowflake.
-  4. 📱 **App Sales & Development**: Mobile app building (React Native, Flutter), SaaS web apps, custom software contracts.
-  5. 🤖 **AI & GenAI Engineering**: RAG pipelines, LLM token optimization, AI agent development.
-- **Robust API Integrations**:
-  - **Google Gemini**: Uses free Google Search grounding with `gemini-2.5-flash`.
-  - **xAI / Grok**: Leverages `grok-2-latest` for live X (Twitter) search and drafting.
-  - **OpenRouter & Groq**: Fallback AI drafting models.
-  - **Tavily**: Structured search across general web & `reddit.com`.
-  - **Apify**: Community X/Twitter scraper Actor support.
-  - **Reddit & DuckDuckGo**: Official/Public Reddit scrapers & no-key fallback search.
-- **Noise & Quality Filtering**:
-  - Automatically filters out listicles, course ads, blog posts, and job aggregators (`NOISE_DOMAINS`).
-  - Rewards genuine hiring signals (`HIRING_SIGNAL_KEYWORDS`).
-- **Rich Excel & Telegram Formatting**:
-  - **Excel (`.xlsx`)**: Styled dark headers (`#1E293B`), auto-fitted column widths, text wrapping, and **clickable `=HYPERLINK()` Excel formulas**.
-  - **Telegram**: Sends rich HTML summary messages with direct clickable top lead links alongside formatted Excel attachments.
-- **Interactive Telegram Bot (`leadgen-bot`)**:
-  - Native long-polling bot supporting `/search <keyword>`, `/stats`, `/top`, `/report`, and `/help` without external platform dependencies.
+Discovers high-intent client opportunities across **5 core categories**, evaluates leads using custom hiring signals and noise filters, generates LLM outreach drafts, formats Excel reports with clickable hyperlinks, and delivers daily interactive summaries to Telegram.
 
 ---
 
-## 🏗️ Architecture
+## 🏛️ System Architecture
 
-```text
-src/leadgen/
-├── config.py              # Pydantic Settings — validates environment & keys at startup
-├── models.py               # RawLead / ScoredLead — validation boundary
-├── storage.py               # SQLite: dedup, indexed queries, transaction safety
-├── pipeline.py               # Orchestrator: concurrent sources, multi-category scoring
-├── report.py                   # Drafts notes, builds styled Excel, sends Telegram HTML
-├── notify.py                    # Telegram messaging & file delivery API
-├── telegram_bot.py              # Interactive Telegram command handler (/search, /stats, /top)
-├── telegram_bot_cli.py          # Entrypoint: leadgen-bot
-├── sources/
-│   ├── base.py                    # Shared retry + circuit-breaker + isolation
-│   ├── grok.py                     # xAI / Grok search (grok-2-latest)
-│   ├── gemini.py                    # Google Gemini search (gemini-2.5-flash)
-│   ├── tavily_source.py              # Structured web & reddit search
-│   ├── apify_source.py                # X/Twitter search via scraper Actor
-│   ├── reddit_source.py                # Official Reddit PRAW API
-│   ├── reddit_public_source.py         # Public Reddit JSON endpoint
-│   └── duckduckgo_source.py            # Free backup search engine
-├── run_pipeline_cli.py       # Entrypoint: leadgen-run
-└── generate_report_cli.py    # Entrypoint: leadgen-report
+```mermaid
+graph TD
+    subgraph Input & Configuration
+        ENV[".env / GitHub Secrets"] --> Config["Config Settings (pydantic-settings)"]
+    end
 
-tests/                       # Comprehensive pytest suite (67+ tests)
-.github/workflows/
-├── ci.yml                  # Linting (ruff) + unit testing on push/PR
-└── daily-pipeline.yml       # Scheduled daily run (10:00 AM IST)
+    subgraph Data Sources Layer
+        Config --> Grok["xAI / Grok (grok-2-latest)"]
+        Config --> Gemini["Google Gemini (gemini-2.5-flash)"]
+        Config --> Tavily["Tavily Structured Web & Reddit"]
+        Config --> Apify["Apify X/Twitter Scraper"]
+        Config --> Reddit["Reddit API / Public JSON"]
+        Config --> DDG["DuckDuckGo Search"]
+    end
+
+    subgraph Core Pipeline Engine
+        Grok & Gemini & Tavily & Apify & Reddit & DDG --> Executor["Concurrent ThreadPoolExecutor"]
+        Executor --> Validator["RawLead Pydantic Boundary Validation"]
+        Validator --> Scorer["Intent Scoring & Noise Domain Filter"]
+    end
+
+    subgraph Storage & Reporting
+        Scorer --> DB[("SQLite Storage (leads.db)\nAtomic URL Hash Dedup")]
+        DB --> LLM["LLM Outreach Drafter\n(Grok / Groq / OpenRouter)"]
+        LLM --> Excel["openpyxl Formatter\n(Dark Headers, Clickable Hyperlinks)"]
+    end
+
+    subgraph Delivery & Interaction
+        Excel --> Telegram["Telegram Bot API\n(HTML Summary + Document)"]
+        TelegramUser["Telegram User (/search, /top, /stats)"] <--> TelegramBot["Interactive Telegram Bot CLI"]
+        TelegramBot <--> DB
+    end
 ```
 
 ---
 
-## ⚡ Quick Start
+## 🔄 Execution Workflow
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Cron as GitHub Actions / Schedule
+    actor User as Telegram User
+    participant Bot as Telegram Bot / CLI
+    participant Pipe as Pipeline Orchestrator
+    participant Src as External Sources (Grok/Gemini/DDG)
+    participant DB as SQLite DB (leads.db)
+    participant Rep as Report Generator (openpyxl)
+    participant TG as Telegram Bot API
+
+    alt Scheduled Daily Execution
+        Cron->>Pipe: Trigger daily run (10:00 AM IST)
+        Pipe->>Src: Fetch leads concurrently with timeouts & circuit breaker
+        Src-->>Pipe: Return raw results
+        Pipe->>Pipe: Validate RawLead & Score intent (filter noise)
+        Pipe->>DB: Atomic insert unique leads
+        Pipe->>Rep: Request daily report build
+        Rep->>DB: Query top scored leads
+        Rep->>Rep: Format Excel with hyperlinks & dark headers
+        Rep->>TG: Send HTML Summary + leads_report_YYYY-MM-DD.xlsx
+    else Interactive Telegram Command
+        User->>Bot: Send /search python analyst
+        Bot->>Src: Run targeted live search
+        Src-->>Bot: Return search leads
+        Bot->>DB: Insert new scored leads
+        Bot->>User: Reply in Telegram chat with top lead links
+    end
+```
+
+---
+
+## 🌟 Lead Target Categories
+
+The pipeline continuously crawls, scores, and indexes leads across 5 high-value domains:
+
+1. **⚡ Workflow & Process Automation**: n8n, Zapier, Make.com, Python scripts, web scraping, business process automation.
+2. **✍️ Freelance Writing & Copywriting**: Technical writing, SaaS documentation, copywriting, proposal writing.
+3. **📊 Data Analysis & Engineering**: Python data science, SQL database analytics, Power BI, Snowflake, Tableau.
+4. **📱 App Sales & Mobile App Development**: Mobile apps (React Native, Flutter), SaaS web apps, custom software contracts.
+5. **🤖 AI & GenAI Engineering**: RAG pipelines, LLM token optimization, AI agent development, generative AI consulting.
+
+---
+
+## 🛠️ API Integrations
+
+| Provider | Purpose | Model / Endpoint | Configuration Keys |
+| :--- | :--- | :--- | :--- |
+| **Google Gemini** | Free grounded Google Web search | `gemini-2.5-flash` | `GEMINI_API_KEY`, `GEMINI_MODEL` |
+| **xAI / Grok** | Live X (Twitter) & web search & drafting | `grok-2-latest` | `XAI_API_KEY`, `XAI_MODEL` |
+| **Tavily** | Structured web & Reddit search | `tavily-python` API | `TAVILY_API_KEY` |
+| **Apify** | Twitter/X scraper Actor search | `automation-lab/twitter-scraper` | `APIFY_API_TOKEN`, `APIFY_TWITTER_COOKIE` |
+| **Reddit** | Official PRAW & Public JSON scraping | PRAW / Public endpoints | `REDDIT_CLIENT_ID`, `REDDIT_CLIENT_SECRET` |
+| **OpenRouter** | Outreach drafting fallback | Configurable open models | `OPENROUTER_API_KEY`, `OPENROUTER_MODEL` |
+| **DuckDuckGo** | Free, no-key fallback search engine | `duckduckgo_search` / `ddgs` | Always active |
+
+---
+
+## 🤖 Telegram Bot Commands (`leadgen-bot`)
+
+Run `leadgen-bot` to launch the native long-polling Telegram listener:
+
+| Command | Usage | Description |
+| :--- | :--- | :--- |
+| `/search` | `/search python analyst` | Performs instant live web search for leads and replies in Telegram chat |
+| `/top` | `/top` | Displays top 5 highest-scored leads with clickable hyperlinks |
+| `/stats` | `/stats` | Shows lead database statistics and count per category |
+| `/report` | `/report` | Generates and sends updated Excel report on demand |
+| `/help` | `/help` | Lists all available bot commands |
+
+---
+
+## 🚀 Setup & Execution
 
 ### 1. Installation
 ```bash
 pip install -e ".[dev]"
 ```
 
-### 2. Environment Configuration
-Copy `.env.example` to `.env` and fill in whichever keys you have (all sources are modular & auto-skip unconfigured keys):
+### 2. Environment Setup
 ```bash
 cp .env.example .env
 ```
 
-### 3. CLI Commands
-
+### 3. Running CLI Tools
 ```bash
-# Fetch, score, and store new leads across all categories
+# Fetch, score, and store new leads
 leadgen-run
 
-# Generate styled Excel report & deliver summary to Telegram
+# Generate styled Excel report & send Telegram HTML summary
 leadgen-report
 
-# Start interactive Telegram Bot listener (/search, /stats, /top, /report)
+# Launch interactive Telegram bot listener
 leadgen-bot
 ```
 
----
-
-## 🤖 Interactive Telegram Bot Usage
-
-When `TELEGRAM_BOT_TOKEN` is set, run `leadgen-bot` to enable Telegram command processing:
-
-| Command | Action |
-| :--- | :--- |
-| `/search <keyword>` | Performs instant live web search for leads (e.g. `/search python analyst`) and replies in chat |
-| `/top` | Displays top 5 highest scored leads with direct clickable links |
-| `/stats` | Shows lead database statistics and count per category |
-| `/report` | Generates and sends updated Excel report on demand |
-| `/help` | Lists all available bot commands |
-
----
-
-## 🧪 Testing & CI Cleanliness
-
-Run lint checks and complete unit test coverage:
+### 4. Running Verification & Test Suite
 ```bash
 # Run linter
 ruff check src tests
@@ -119,13 +160,7 @@ pytest --cov=leadgen --cov-report=term-missing
 
 ---
 
-## 🚀 GitHub Actions Deployment
+## 🔒 License & Copyright
 
-The repository includes a automated GitHub Action workflow (`.github/workflows/daily-pipeline.yml`):
-- Runs automatically at **10:00 AM IST** daily (or trigger manually via `Workflow Dispatch` in GitHub Actions tab).
-- Fetches leads, generates the styled Excel report, and pushes notifications directly to your Telegram bot.
-
----
-
-## 📄 License
-MIT License. Developed for TechNova World.
+**Proprietary & Confidential** — TechNova World. All Rights Reserved.  
+Unauthorized copying, modification, distribution, or use of this repository is strictly prohibited.
