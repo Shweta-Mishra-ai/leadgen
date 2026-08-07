@@ -28,9 +28,20 @@ from leadgen.storage import LeadStore
 logger = logging.getLogger("leadgen.pipeline")
 
 NICHE_KEYWORDS = [
+    # AI & Automation
     "llm cost optimization", "reduce llm cost", "token optimization",
-    "genai engineer", "ai automation freelancer", "openai api cost",
-    "llm proxy", "cut api costs", "generative ai consultant",
+    "genai engineer", "ai automation freelancer", "generative ai consultant",
+    "ai agent developer",
+    # Freelance Writing
+    "freelance writer", "content writer", "technical writer", "copywriter",
+    "writing freelancer", "content writing contract",
+    # Data Analysis & Engineering
+    "data analyst", "data analysis freelancer", "python data analyst",
+    "sql analyst", "data visualization freelancer", "data engineer freelancer",
+    # App Development & App Sales
+    "app developer freelancer", "mobile app developer", "flutter developer",
+    "react native developer", "build an app", "saas app development",
+    "custom web app developer",
 ]
 
 HIRING_SIGNAL_KEYWORDS = [
