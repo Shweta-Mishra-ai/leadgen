@@ -73,7 +73,7 @@ class TelegramBot:
                 lines.append(
                     f"{idx}. <b>{title}</b>\n"
                     f"   ⭐ Score: <code>{score}</code> | Source: <i>{src}</i>\n"
-                    f"   🔗 <a href=\"{url}\">Open Lead Link</a>\n"
+                    f"   🔗 <b>URL:</b> {url}\n"
                 )
             send_telegram_message(self.bot_token, str(chat_id), "\n".join(lines), parse_mode="HTML")
 
@@ -111,7 +111,7 @@ class TelegramBot:
                 lines.append(
                     f"{idx}. <b>{html.escape(lead.title)}</b>\n"
                     f"   ⭐ Score: <code>{lead.score}</code>\n"
-                    f"   🔗 <a href=\"{lead.url}\">Open Link</a>\n"
+                    f"   🔗 <b>URL:</b> {lead.url}\n"
                 )
 
             send_telegram_message(self.bot_token, str(chat_id), "\n".join(lines), parse_mode="HTML")

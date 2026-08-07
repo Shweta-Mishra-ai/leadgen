@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 
 from leadgen.sources.base import LeadSource
 
@@ -46,6 +47,11 @@ class GrokSource(LeadSource):
             text = text.removeprefix(fence)
             text = text.removesuffix("```")
         text = text.strip()
+
+        match = re.search(r"\[.*\]", text, re.DOTALL)
+        if match:
+            text = match.group(0)
+
         try:
             items = json.loads(text)
         except json.JSONDecodeError:

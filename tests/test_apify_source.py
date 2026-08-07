@@ -5,14 +5,12 @@ from unittest.mock import MagicMock, patch
 from leadgen.sources.apify_source import ApifySource
 
 
-def test_apify_not_configured_without_both_token_and_cookie():
+def test_apify_not_configured_without_token():
     assert ApifySource(api_token=None, twitter_cookie=None).is_configured() is False
-    assert ApifySource(api_token="tok", twitter_cookie=None).is_configured() is False
-    assert ApifySource(api_token=None, twitter_cookie="auth_token=x; ct0=y").is_configured() is False
 
 
-def test_apify_configured_with_both():
-    source = ApifySource(api_token="tok", twitter_cookie="auth_token=x; ct0=y")
+def test_apify_configured_with_token():
+    source = ApifySource(api_token="tok", twitter_cookie=None)
     assert source.is_configured() is True
 
 

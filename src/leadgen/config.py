@@ -57,7 +57,7 @@ class Settings(BaseSettings):
         has_grok = bool(self.xai_api_key)
         has_gemini = bool(self.gemini_api_key)
         has_tavily = bool(self.tavily_api_key)
-        has_apify = bool(self.apify_api_token and self.apify_twitter_cookie)
+        has_apify = bool(self.apify_api_token)
         has_reddit = bool(self.reddit_client_id and self.reddit_client_secret)
         # DuckDuckGo needs no key so it's always available; still warn if
         # it's the ONLY source since it's an unofficial best-effort source.
@@ -67,7 +67,7 @@ class Settings(BaseSettings):
                 "No paid/official source keys configured — running on "
                 "DuckDuckGo only, which is unofficial and best-effort. "
                 "Add XAI_API_KEY, GEMINI_API_KEY, TAVILY_API_KEY, "
-                "APIFY_API_TOKEN+APIFY_TWITTER_COOKIE, or REDDIT_CLIENT_ID "
+                "APIFY_API_TOKEN, or REDDIT_CLIENT_ID "
                 "for reliable results.",
                 stacklevel=2,
             )
@@ -81,7 +81,7 @@ class Settings(BaseSettings):
             names.append("gemini")
         if self.tavily_api_key:
             names.append("tavily")
-        if self.apify_api_token and self.apify_twitter_cookie:
+        if self.apify_api_token:
             names.append("apify")
         if self.reddit_client_id and self.reddit_client_secret:
             names.append("reddit")

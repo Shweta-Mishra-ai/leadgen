@@ -207,7 +207,7 @@ def generate_report(settings: Settings, store: LeadStore) -> str:
         summary_msg.append(
             f"{idx}. <b>{title}</b>\n"
             f"   ⭐ Score: <code>{lead['Score']}</code> | Source: <i>{lead['Source']}</i>\n"
-            f"   🔗 <a href=\"{lead['URL']}\">View Lead Link</a>\n"
+            f"   🔗 <b>URL:</b> {lead['URL']}\n"
         )
     summary_msg.append("📎 <i>Complete formatted Excel report attached below.</i>")
     formatted_text = "\n".join(summary_msg)

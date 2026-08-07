@@ -42,8 +42,7 @@ class ApifySource(LeadSource):
         self._client = None
 
     def is_configured(self) -> bool:
-        # both are required — search mode is useless without cookies
-        return bool(self.api_token and self.twitter_cookie)
+        return bool(self.api_token)
 
     def _get_client(self):
         if self._client is None:
@@ -64,14 +63,17 @@ class ApifySource(LeadSource):
         try:
             from datetime import timedelta
             from decimal import Decimal
+            run_input = {
+                "mode": "search",
+                "searchTerms": topics,
+                "searchMode": "Latest",
+                "maxResults": self.max_results_per_topic,
+            }
+            if self.twitter_cookie:
+                run_input["twitterCookie"] = self.twitter_cookie
+
             run = client.actor(self.actor_id).call(
-                run_input={
-                    "mode": "search",
-                    "searchTerms": topics,
-                    "searchMode": "Latest",
-                    "maxResults": self.max_results_per_topic,
-                    "twitterCookie": self.twitter_cookie,
-                },
+                run_input=run_input,
                 run_timeout=timedelta(seconds=self.timeout_seconds * 2),
                 # hard spend cap per run — was $0.15, right at the edge of
                 # the estimated ~$0.135-0.14/run cost, likely aborting runs

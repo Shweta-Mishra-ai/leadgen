@@ -50,32 +50,46 @@ class GeminiSource(LeadSource):
         resp.raise_for_status()  # 4xx (bad key etc.) raises and is NOT retried
 
         data = resp.json()
+        items = []
+
+        # 1. Parse text JSON output
         try:
-            text = data["candidates"][0]["content"]["parts"][0]["text"]
-        except (KeyError, IndexError) as e:
-            logger.warning("gemini unexpected response shape for topic=%r: %s", topic, e)
-            return []
+            text = data["candidates"][0]["content"]["parts"][0]["text"].strip()
+            for fence in ("```json", "```"):
+                text = text.removeprefix(fence)
+                text = text.removesuffix("```")
+            text = text.strip()
+            parsed = json.loads(text)
+            if isinstance(parsed, list):
+                items.extend(parsed)
+        except Exception:  # noqa: BLE001
+            pass
 
-        text = text.strip()
-        for fence in ("```json", "```"):
-            text = text.removeprefix(fence)
-            text = text.removesuffix("```")
-        text = text.strip()
-
+        # 2. Extract groundingMetadata URLs from Google Search Grounding
         try:
-            items = json.loads(text)
-        except json.JSONDecodeError:
-            logger.warning("gemini returned non-JSON for topic=%r: %.200s", topic, text)
-            return []
+            candidate = data["candidates"][0]
+            metadata = candidate.get("groundingMetadata", {})
+            chunks = metadata.get("groundingChunks", [])
+            for chunk in chunks:
+                web = chunk.get("web", {})
+                if web.get("uri"):
+                    items.append({
+                        "title": web.get("title", f"Lead for {topic}"),
+                        "url": web.get("uri"),
+                        "snippet": f"Google Search lead for {topic}",
+                        "created": "",
+                    })
+        except Exception:  # noqa: BLE001
+            pass
 
-        return [
-            {
-                "source": "gemini",
-                "title": item.get("title", ""),
-                "url": item.get("url", ""),
-                "snippet": item.get("snippet", ""),
-                "created": item.get("created", ""),
-            }
-            for item in items
-            if item.get("url")
-        ]
+        results = []
+        for item in items:
+            if isinstance(item, dict) and item.get("url"):
+                results.append({
+                    "source": "gemini",
+                    "title": item.get("title", ""),
+                    "url": item.get("url", ""),
+                    "snippet": item.get("snippet", ""),
+                    "created": item.get("created", ""),
+                })
+        return results
