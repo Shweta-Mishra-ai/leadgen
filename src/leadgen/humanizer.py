@@ -26,12 +26,14 @@ Return ONLY a JSON object with keys "subject" and "body":
 
 
 def generate_humanized_email(
-    settings: Settings, title: str, snippet: str, client_name: str = ""
+    settings: Settings, title: str, snippet: str, client_name: str = "", framework: str = "DIRECT"
 ) -> tuple[str, str]:
-    """Generates a humanized, personalized email subject and body for a lead using LLM.
+    """Generates a humanized, personalized email subject and body for a lead using LLM and marketing frameworks.
 
     Returns (subject, body).
     """
+    from leadgen.marketing_skills import get_framework_instruction
+
     client, model = _get_draft_client_and_model(settings)
     if not client:
         # Fallback template if no LLM key is set
@@ -45,7 +47,13 @@ def generate_humanized_email(
         )
         return subj, body
 
-    user_prompt = f"Lead Title: {title}\nLead Details: {snippet}\nClient Name: {client_name or 'there'}"
+    framework_instr = get_framework_instruction(framework)
+    user_prompt = (
+        f"Framework Instruction: {framework_instr}\n"
+        f"Lead Title: {title}\n"
+        f"Lead Details: {snippet}\n"
+        f"Client Name: {client_name or 'there'}"
+    )
 
     try:
         resp = client.chat.completions.create(
