@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import csv
 import hashlib
+import os
 import sqlite3
 from contextlib import contextmanager
 
@@ -52,6 +53,9 @@ def url_hash(url: str) -> str:
 class LeadStore:
     def __init__(self, db_path: str):
         self.db_path = db_path
+        # Auto-create parent directory if it doesn't exist (e.g. /data on Render.com)
+        parent = os.path.dirname(os.path.abspath(db_path))
+        os.makedirs(parent, exist_ok=True)
         self._init_schema()
 
     @contextmanager
