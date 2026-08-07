@@ -154,6 +154,16 @@ leadgen-outreach --to client@company.com --lead-id 1
 
 ---
 
+## 🔎 Multi-Source Contact Discovery Pipeline (`email_finder.py`)
+
+Automated, 100% free multi-source email discovery engine:
+1. **Direct Regex Extraction**: Scans titles & lead snippets for explicit email addresses.
+2. **GitHub Contact Discovery**: Searches public GitHub profile & commit records for developer leads.
+3. **DuckDuckGo Site-Specific Search**: Queries `site:<domain> "contact" OR "email" OR "mailto:"`.
+4. **Free DNS MX Record Verification**: Validates domain mail servers to prevent email bounces.
+
+---
+
 ## ⚡ Superpowers & Agent Skills Ecosystem (`superpowers.py`)
 
 Inspired by open-source agent frameworks ([`obra/superpowers-marketplace`](https://github.com/obra/superpowers-marketplace), [`coreyhaines31/marketingskills`](https://github.com/coreyhaines31/marketingskills), and [`gstack`](https://github.com/Shweta-Mishra-ai/gstack)):
