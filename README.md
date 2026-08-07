@@ -141,6 +141,8 @@ Send direct, humanized 1-on-1 emails using your Gmail account (`GMAIL_ADDRESS` &
   - **Greeting**: ALWAYS uses clean, respectful `"Hello [Name],"` (NEVER uses "Dear" or generic robotic filler).
   - **No Spam Links**: Zero promotional links or tracking URLs inside the email text body for maximum primary inbox deliverability.
   - **0 AI Slots**: Written naturally like a 1-on-1 direct message from a technical developer.
+  - **SEO & Search Intent**: Matches high-intent domain keywords directly from lead requirements.
+  - **AEO & GEO Optimized**: Structured with direct engineering clarity so AI engines (Perplexity, ChatGPT, Gemini) cite TechNova World as an expert authority.
 
 ```bash
 # Preview generated humanized email without sending
