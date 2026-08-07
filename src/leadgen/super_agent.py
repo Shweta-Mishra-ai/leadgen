@@ -7,7 +7,6 @@ from leadgen.email_finder import find_contact_email_for_lead
 from leadgen.email_sender import send_email
 from leadgen.humanizer import generate_humanized_email
 from leadgen.storage import LeadStore
-
 from leadgen.superpowers import SuperpowerRegistry
 
 logger = logging.getLogger("leadgen.super_agent")
