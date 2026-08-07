@@ -450,7 +450,7 @@ class TelegramBot:
             # any exception abort the whole loop with no reply sent.
             try:
                 self.handle_command(str(chat_id), text)
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:
                 logger.exception("command %r failed", text)
                 send_telegram_message(
                     self.bot_token,
