@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import urllib.request
+from datetime import datetime, timezone
 from typing import Any
 
 from leadgen.config import Settings
@@ -19,12 +20,19 @@ def send_lead_webhook(settings: Settings, lead_data: dict[str, Any]) -> bool:
 
     payload = {
         "event": "high_score_lead_found",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "lead": {
             "title": lead_data.get("title"),
             "url": lead_data.get("url"),
             "score": lead_data.get("score"),
             "category": lead_data.get("category"),
             "snippet": lead_data.get("snippet"),
+            "email_found": lead_data.get("email_found"),
+            "tech_stack": lead_data.get("tech_stack", []),
+        },
+        "sender": {
+            "name": settings.sender_name,
+            "gmail": settings.gmail_address,
         },
     }
 
