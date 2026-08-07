@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import urllib.request
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from leadgen.config import Settings
@@ -20,7 +20,7 @@ def send_lead_webhook(settings: Settings, lead_data: dict[str, Any]) -> bool:
 
     payload = {
         "event": "high_score_lead_found",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "lead": {
             "title": lead_data.get("title"),
             "url": lead_data.get("url"),
