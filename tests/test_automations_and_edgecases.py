@@ -66,34 +66,34 @@ def test_followup_schedule_has_3_stages():
 
 
 def test_stage_1_message_no_pressure():
-    subj, body = _stage_message("Shweta", "Build AI Agent", stage=1)
+    _subj, body = _stage_message("Shweta", "Build AI Agent", stage=1)
     assert "Build AI Agent" in body
     assert "Hello," in body
     assert "Dear" not in body
 
 
 def test_stage_2_message_new_angle():
-    subj, body = _stage_message("Shweta", "Automation Pipeline", stage=2)
+    _subj, body = _stage_message("Shweta", "Automation Pipeline", stage=2)
     assert "Automation Pipeline" in body
     assert "40%" in body  # social proof line
     assert "Dear" not in body
 
 
 def test_stage_3_message_final_close():
-    subj, body = _stage_message("Shweta", "Data Scraping", stage=3)
+    _subj, body = _stage_message("Shweta", "Data Scraping", stage=3)
     assert "last follow-up" in body.lower()
     assert "no pressure" in body.lower()
     assert "Dear" not in body
 
 
 def test_generate_followup_message_with_name():
-    subj, body = generate_followup_message("Shweta", "John", "Build AI Agent", stage=1)
+    _subj, body = generate_followup_message("Shweta", "John", "Build AI Agent", stage=1)
     assert "Hello John," in body
     assert "Dear" not in body
 
 
 def test_generate_followup_message_stage3():
-    subj, body = generate_followup_message("Shweta", "", "Data Pipeline", stage=3)
+    _subj, body = generate_followup_message("Shweta", "", "Data Pipeline", stage=3)
     assert "last follow-up" in body.lower()
 
 
