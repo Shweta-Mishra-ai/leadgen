@@ -44,7 +44,9 @@ def find_contact_email_for_lead(title: str, url: str, snippet: str) -> str | Non
         query = f'site:{domain} "email" OR "contact"'
         raw_results = ddg.fetch_all([query])
         for res in raw_results:
-            found = extract_emails_from_text(f"{res.get('title', '')} {res.get('snippet', '')}")
+            res_title = getattr(res, "title", "") or ""
+            res_snippet = getattr(res, "snippet", "") or ""
+            found = extract_emails_from_text(f"{res_title} {res_snippet}")
             if found:
                 logger.info("Found domain email via DDG search for %s: %s", domain, found[0])
                 return found[0]
