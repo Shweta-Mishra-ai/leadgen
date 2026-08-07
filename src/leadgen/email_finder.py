@@ -19,9 +19,8 @@ def extract_emails_from_text(text: str) -> list[str]:
     for email in matches:
         email_clean = email.strip().lower()
         # Filter out common generic noise emails unless no others exist
-        if not any(email_clean.startswith(prefix) for prefix in ("privacy@", "noreply@", "donotreply@")):
-            if email_clean not in valid:
-                valid.append(email_clean)
+        if not any(email_clean.startswith(prefix) for prefix in ("privacy@", "noreply@", "donotreply@")) and email_clean not in valid:
+            valid.append(email_clean)
     return valid
 
 
