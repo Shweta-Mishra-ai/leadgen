@@ -35,7 +35,9 @@ class TelegramBot:
             msg = (
                 "🤖 <b>LeadGen Interactive Telegram Bot</b>\n\n"
                 "Available Commands:\n"
-                "• <b>/search &lt;keyword&gt;</b> — Instant web search for leads (e.g. <code>/search python analyst</code>)\n"
+                "• <b>/search &lt;keyword&gt;</b> — Instant web search for leads\n"
+                "• <b>/email &lt;lead_id&gt; &lt;recipient_email&gt;</b> — Send humanized, 1-on-1 personalized Gmail outreach\n"
+                "• <b>/outreach</b> — View outreach history & analytics\n"
                 "• <b>/stats</b> — View lead database statistics category-wise\n"
                 "• <b>/top</b> — Get top 5 highest scored leads\n"
                 "• <b>/report</b> — Generate and send full Excel report\n"
@@ -116,17 +118,78 @@ class TelegramBot:
 
             send_telegram_message(self.bot_token, str(chat_id), "\n".join(lines), parse_mode="HTML")
 
-        elif command == "/report":
-            send_telegram_message(self.bot_token, str(chat_id), "⏳ Generating full Excel report...")
-            from leadgen.report import generate_report
-            try:
-                report_path = generate_report(self.settings, self.store)
-                send_telegram_message(
-                    self.bot_token, str(chat_id), f"✅ Report generated: <code>{report_path}</code>"
+        elif command == "/outreach":
+            logs = self.store.all_outreach_logs()
+            if not logs:
+                send_telegram_message(self.bot_token, str(chat_id), "No direct outreach emails sent yet.")
+                return
+            lines = [f"📧 <b>Direct Outreach History ({len(logs)} total)</b>", ""]
+            for idx, log in enumerate(logs[:5], 1):
+                lines.append(
+                    f"{idx}. <b>To:</b> {html.escape(log['recipient_email'])}\n"
+                    f"   <b>Subject:</b> {html.escape(log['subject'])}\n"
+                    f"   <b>Status:</b> <code>{log['status']}</code> | <i>{log['sent_at'][:10]}</i>\n"
                 )
-            except Exception as e:  # noqa: BLE001
+            send_telegram_message(self.bot_token, str(chat_id), "\n".join(lines), parse_mode="HTML")
+
+        elif command == "/email":
+            args_list = args.split()
+            if len(args_list) < 2:
                 send_telegram_message(
-                    self.bot_token, str(chat_id), f"❌ Report generation failed: {e}"
+                    self.bot_token,
+                    str(chat_id),
+                    "⚠️ Usage: <code>/email &lt;lead_id&gt; &lt;recipient_email&gt;</code>\nExample: <code>/email 1 client@company.com</code>",
+                    parse_mode="HTML",
+                )
+                return
+
+            try:
+                lead_id = int(args_list[0])
+                to_email = args_list[1]
+            except ValueError:
+                send_telegram_message(self.bot_token, str(chat_id), "❌ Invalid lead_id format.")
+                return
+
+            lead = self.store.get_lead_by_id(lead_id)
+            if not lead:
+                send_telegram_message(self.bot_token, str(chat_id), f"❌ Lead ID {lead_id} not found.")
+                return
+
+            send_telegram_message(
+                self.bot_token,
+                str(chat_id),
+                f"🧠 Generating humanized, non-AI proposal note for lead #{lead_id}...",
+            )
+
+            from leadgen.email_sender import send_email
+            from leadgen.humanizer import generate_humanized_email
+
+            subj, body = generate_humanized_email(self.settings, lead["title"], lead["snippet"])
+
+            if not self.settings.gmail_address or not self.settings.gmail_app_password:
+                msg = (
+                    f"📝 <b>Humanized Outreach Generated (Not Sent — Gmail Credentials Missing)</b>\n\n"
+                    f"<b>To:</b> {to_email}\n"
+                    f"<b>Subject:</b> {html.escape(subj)}\n\n"
+                    f"<b>Body:</b>\n{html.escape(body)}\n\n"
+                    f"<i>Add GMAIL_ADDRESS and GMAIL_APP_PASSWORD to enable direct sending.</i>"
+                )
+                send_telegram_message(self.bot_token, str(chat_id), msg, parse_mode="HTML")
+                return
+
+            success = send_email(self.settings, to_email, subj, body)
+            if success:
+                self.store.log_outreach(lead["url"], to_email, subj, body, status="sent")
+                send_telegram_message(
+                    self.bot_token,
+                    str(chat_id),
+                    f"✅ <b>Outreach Sent Successfully!</b>\n\n<b>To:</b> {to_email}\n<b>Subject:</b> {html.escape(subj)}",
+                    parse_mode="HTML",
+                )
+            else:
+                self.store.log_outreach(lead["url"], to_email, subj, body, status="failed")
+                send_telegram_message(
+                    self.bot_token, str(chat_id), f"❌ Failed to send email to {to_email}."
                 )
 
         else:

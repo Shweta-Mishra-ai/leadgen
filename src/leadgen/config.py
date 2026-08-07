@@ -52,6 +52,13 @@ class Settings(BaseSettings):
 
     db_path: str = Field(default="leads.db", alias="LEADGEN_DB_PATH")
 
+    # Direct Gmail / SMTP Outreach Configuration
+    gmail_address: str | None = Field(default=None, alias="GMAIL_ADDRESS")
+    gmail_app_password: str | None = Field(default=None, alias="GMAIL_APP_PASSWORD")
+    sender_name: str = Field(default="Shweta | TechNova World", alias="SENDER_NAME")
+    smtp_host: str = Field(default="smtp.gmail.com", alias="SMTP_HOST")
+    smtp_port: int = Field(default=587, alias="SMTP_PORT")
+
     @model_validator(mode="after")
     def at_least_one_source(self) -> Settings:
         has_grok = bool(self.xai_api_key)

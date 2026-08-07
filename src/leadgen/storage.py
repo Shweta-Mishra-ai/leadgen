@@ -30,6 +30,17 @@ CREATE TABLE IF NOT EXISTS leads (
 );
 CREATE INDEX IF NOT EXISTS idx_leads_score ON leads(score DESC);
 CREATE INDEX IF NOT EXISTS idx_leads_found_at ON leads(found_at DESC);
+
+CREATE TABLE IF NOT EXISTS outreach_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    lead_url TEXT NOT NULL,
+    recipient_email TEXT NOT NULL,
+    subject TEXT NOT NULL,
+    body TEXT NOT NULL,
+    sent_at TEXT NOT NULL,
+    status TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_outreach_sent_at ON outreach_logs(sent_at DESC);
 """
 
 
@@ -92,6 +103,31 @@ class LeadStore:
         with self._connect() as conn:
             rows = conn.execute(
                 "SELECT * FROM leads ORDER BY score DESC, found_at DESC"
+            ).fetchall()
+            return [dict(r) for r in rows]
+
+    def get_lead_by_id(self, lead_id: int) -> dict | None:
+        with self._connect() as conn:
+            row = conn.execute("SELECT * FROM leads WHERE id = ?", (lead_id,)).fetchone()
+            return dict(row) if row else None
+
+    def log_outreach(
+        self, lead_url: str, recipient_email: str, subject: str, body: str, status: str = "sent"
+    ) -> None:
+        from datetime import UTC, datetime
+        now = datetime.now(UTC).isoformat()
+        with self._connect() as conn:
+            conn.execute(
+                """INSERT INTO outreach_logs (lead_url, recipient_email, subject, body, sent_at, status)
+                   VALUES (?, ?, ?, ?, ?, ?)""",
+                (lead_url, recipient_email, subject, body, now, status),
+            )
+            conn.commit()
+
+    def all_outreach_logs(self) -> list[dict]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT * FROM outreach_logs ORDER BY sent_at DESC"
             ).fetchall()
             return [dict(r) for r in rows]
 

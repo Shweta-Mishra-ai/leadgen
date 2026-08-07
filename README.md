@@ -122,10 +122,26 @@ Run `leadgen-bot` to launch the native long-polling Telegram listener:
 | Command | Usage | Description |
 | :--- | :--- | :--- |
 | `/search` | `/search python analyst` | Performs instant live web search for leads and replies in Telegram chat |
+| `/email` | `/email 1 client@company.com` | Humanizes (0 AI slots/robotic filler) & sends 1-on-1 direct Gmail outreach |
+| `/outreach` | `/outreach` | Views sent email history & delivery analytics |
 | `/top` | `/top` | Displays top 5 highest-scored leads with clickable hyperlinks |
 | `/stats` | `/stats` | Shows lead database statistics and count per category |
 | `/report` | `/report` | Generates and sends updated Excel report on demand |
 | `/help` | `/help` | Lists all available bot commands |
+
+---
+
+## 📧 Direct Email Outreach CLI (`leadgen-outreach`)
+
+Send direct, humanized 1-on-1 emails using your Gmail account (`GMAIL_ADDRESS` & `GMAIL_APP_PASSWORD`):
+
+```bash
+# Preview generated humanized email without sending
+leadgen-outreach --to client@company.com --lead-id 1 --dry-run
+
+# Send email directly and log to SQLite database
+leadgen-outreach --to client@company.com --lead-id 1
+```
 
 ---
 
@@ -145,6 +161,9 @@ cp .env.example .env
 ```bash
 # Fetch, score, and store new leads
 leadgen-run
+
+# Direct humanized Gmail outreach
+leadgen-outreach --to client@company.com --lead-id 1
 
 # Generate styled Excel report & send Telegram HTML summary
 leadgen-report
