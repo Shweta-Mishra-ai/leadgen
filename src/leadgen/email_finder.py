@@ -60,12 +60,23 @@ def find_github_contact_email(url: str) -> str | None:
     return None
 
 
-def find_contact_email_for_lead(title: str, url: str, snippet: str) -> str | None:
+def find_contact_email_for_lead(
+    title: str, url: str, snippet: str, allow_guess: bool = False
+) -> str | None:
     """Multi-source free email finder pipeline:
     1. Direct Regex Extraction (Title + Snippet)
     2. GitHub Profile Lookup (if github.com link)
     3. Targeted DuckDuckGo Contact Search
-    4. MX-Verified Domain Pattern Generation Fallback
+    4. (only if allow_guess=True) contact@domain pattern guess
+
+    Step 4 does NOT verify that mailbox exists — check_domain_has_mx only
+    confirms the domain accepts mail *somewhere*, not that "contact@" is a
+    real, monitored address. Presenting that guess as a "found" email led
+    to an actual outreach send to a fabricated address at a company blog
+    domain (developer.ibm.com) that was never a real lead. Defaulting
+    allow_guess to False means callers get None instead of a confident-
+    looking wrong answer; only opt in if you're going to show the user
+    it's a guess before sending anything to it.
     """
     # 1. Direct text extraction
     combined = f"{title} {snippet}"
@@ -95,10 +106,10 @@ def find_contact_email_for_lead(title: str, url: str, snippet: str) -> str | Non
                 logger.info("Found domain email via DDG search for %s: %s", domain, found[0])
                 return found[0]
 
-        # 4. MX Domain Verification Fallback
-        if check_domain_has_mx(domain):
+        # 4. Unverified pattern guess — opt-in only, see docstring.
+        if allow_guess and check_domain_has_mx(domain):
             pattern_email = f"contact@{domain}"
-            logger.info("Generated MX-verified contact email for %s: %s", domain, pattern_email)
+            logger.info("Guessed (unverified) contact email for %s: %s", domain, pattern_email)
             return pattern_email
 
     return None

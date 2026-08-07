@@ -85,6 +85,20 @@ def test_genuine_hiring_post_outscores_generic_discussion_and_vendor_noise():
     assert genuine > vendor
 
 
+def test_vendor_devrel_blog_scores_zero():
+    # Regression: this exact article scored as a lead, then the email
+    # finder guessed a fabricated contact@developer.ibm.com for it and
+    # an outreach email actually got sent to that made-up address.
+    lead = RawLead(
+        source="duckduckgo",
+        title="Token optimization: The backbone of effective prompt engineering",
+        url="https://developer.ibm.com/articles/awb-token-optimization-backbone-of-effective-prompt-engineering/",
+        snippet="Prompt engineering and token optimization are essential for enhancing "
+                 "the accuracy, efficiency, and cost-effectiveness of generative AI solutions.",
+    )
+    assert score_lead(lead) == 0
+
+
 def test_platform_bonus_requires_hiring_signal():
     no_hiring_signal = RawLead(
         source="tavily_reddit",
