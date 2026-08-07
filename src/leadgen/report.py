@@ -151,6 +151,10 @@ def generate_report(settings: Settings, store: LeadStore) -> str:
     def _clean(rows: list[dict]) -> list[dict]:
         return [
             {
+                # Without this, /autoemail, /email and /super are unusable —
+                # they take a lead_id, and this was the only place a user
+                # could ever discover what a lead's id is.
+                "ID": row.get("id", ""),
                 "Score": row.get("score", 0),
                 "Source": row.get("source", ""),
                 "Title": row.get("title", ""),
@@ -170,7 +174,7 @@ def generate_report(settings: Settings, store: LeadStore) -> str:
     # between runs; with an ephemeral DB it just equals All Leads.
     new_today = _clean(store.leads_found_on(today))
     new_today_df = pd.DataFrame(new_today) if new_today else pd.DataFrame(
-        columns=["Score", "Source", "Title", "URL", "Snippet", "Created", "Found At"]
+        columns=["ID", "Score", "Source", "Title", "URL", "Snippet", "Created", "Found At"]
     )
 
     outreach = [
@@ -195,6 +199,7 @@ def generate_report(settings: Settings, store: LeadStore) -> str:
         for lead in top:
             note = draft_note(client, model, lead["title"], lead["snippet"])
             drafts.append({
+                "ID": lead.get("id", ""),
                 "Score": lead.get("score", 0),
                 "Source": lead.get("source", ""),
                 "Title": lead.get("title", ""),
@@ -205,7 +210,7 @@ def generate_report(settings: Settings, store: LeadStore) -> str:
         logger.info("No drafting keys configured (XAI, GROQ, or OPENROUTER), skipping draft generation")
 
     drafts_df = pd.DataFrame(drafts) if drafts else pd.DataFrame(
-        columns=["Score", "Source", "Title", "URL", "Outreach Draft Note"]
+        columns=["ID", "Score", "Source", "Title", "URL", "Outreach Draft Note"]
     )
 
     report_path = f"leads_report_{today}.xlsx"
