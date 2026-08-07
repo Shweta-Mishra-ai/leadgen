@@ -35,6 +35,7 @@ class TelegramBot:
             msg = (
                 "🤖 <b>LeadGen Interactive Telegram Bot</b>\n\n"
                 "Available Commands:\n"
+                "• <b>/super &lt;lead_id&gt; [PAS/BAB/DIRECT]</b> — Multi-role Super Agent (Profile ➔ Copywrite ➔ Audit ➔ Deliver)\n"
                 "• <b>/search &lt;keyword&gt;</b> — Instant web search for leads\n"
                 "• <b>/autoemail &lt;lead_id&gt;</b> — Auto-find contact email & send humanized Gmail outreach\n"
                 "• <b>/email &lt;lead_id&gt; &lt;recipient_email&gt;</b> — Send humanized, 1-on-1 personalized Gmail outreach\n"
@@ -132,6 +133,74 @@ class TelegramBot:
                     f"   <b>Status:</b> <code>{log['status']}</code> | <i>{log['sent_at'][:10]}</i>\n"
                 )
             send_telegram_message(self.bot_token, str(chat_id), "\n".join(lines), parse_mode="HTML")
+
+        elif command == "/super":
+            args_list = args.split()
+            if not args_list:
+                send_telegram_message(
+                    self.bot_token,
+                    str(chat_id),
+                    "⚠️ Usage: <code>/super &lt;lead_id&gt; [PAS/BAB/DIRECT]</code>\nExample: <code>/super 1 PAS</code>",
+                    parse_mode="HTML",
+                )
+                return
+
+            try:
+                lead_id = int(args_list[0])
+            except ValueError:
+                send_telegram_message(self.bot_token, str(chat_id), "❌ Invalid lead_id format.")
+                return
+
+            framework = args_list[1].upper() if len(args_list) > 1 else "PAS"
+
+            lead = self.store.get_lead_by_id(lead_id)
+            if not lead:
+                send_telegram_message(self.bot_token, str(chat_id), f"❌ Lead ID {lead_id} not found.")
+                return
+
+            send_telegram_message(
+                self.bot_token,
+                str(chat_id),
+                f"🤖 <b>Super Agent Multi-Role Pipeline Executing...</b>\n\n"
+                f"• Role 1 (Profiler): Analyzing lead intent\n"
+                f"• Role 2 (Copywriter): Framework <code>{framework}</code>\n"
+                f"• Role 3 (Humanizer Audit): Stripping AI filler & links\n"
+                f"• Role 4 (Deliverability): Checking email & SMTP",
+                parse_mode="HTML",
+            )
+
+            from leadgen.super_agent import SuperOutreachAgent
+            super_agent = SuperOutreachAgent(self.settings, self.store)
+            res = super_agent.process_lead(
+                title=lead["title"],
+                snippet=lead["snippet"],
+                url=lead["url"],
+                framework=framework,
+            )
+
+            target = res["target_email"]
+            subj = res["subject"]
+            body = res["body"]
+            sent = res["sent"]
+
+            if sent:
+                msg = (
+                    f"✅ <b>Super Agent Outreach Delivered!</b>\n\n"
+                    f"<b>To:</b> {target}\n"
+                    f"<b>Framework:</b> <code>{framework}</code>\n"
+                    f"<b>Subject:</b> {html.escape(str(subj))}\n\n"
+                    f"<b>Body:</b>\n{html.escape(str(body))}"
+                )
+            else:
+                msg = (
+                    f"📝 <b>Super Agent Output Generated (Not Sent)</b>\n\n"
+                    f"<b>Target Email:</b> {target}\n"
+                    f"<b>Framework:</b> <code>{framework}</code>\n"
+                    f"<b>Subject:</b> {html.escape(str(subj))}\n\n"
+                    f"<b>Body:</b>\n{html.escape(str(body))}"
+                )
+
+            send_telegram_message(self.bot_token, str(chat_id), msg, parse_mode="HTML")
 
         elif command == "/autoemail":
             if not args:

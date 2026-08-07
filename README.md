@@ -121,7 +121,9 @@ Run `leadgen-bot` to launch the native long-polling Telegram listener:
 
 | Command | Usage | Description |
 | :--- | :--- | :--- |
+| `/super` | `/super 1 PAS` | Multi-role Super Agent (Profile ➔ Copywrite ➔ Audit ➔ Auto-Deliver) |
 | `/search` | `/search python analyst` | Performs instant live web search for leads and replies in Telegram chat |
+| `/autoemail` | `/autoemail 1` | Auto-find contact email & send humanized Gmail outreach |
 | `/email` | `/email 1 client@company.com` | Humanizes (0 AI slots/robotic filler) & sends 1-on-1 direct Gmail outreach |
 | `/outreach` | `/outreach` | Views sent email history & delivery analytics |
 | `/top` | `/top` | Displays top 5 highest-scored leads with clickable hyperlinks |
