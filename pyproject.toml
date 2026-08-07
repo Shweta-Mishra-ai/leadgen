@@ -31,6 +31,7 @@ dev = [
 [project.scripts]
 leadgen-run = "leadgen.run_pipeline_cli:main"
 leadgen-report = "leadgen.generate_report_cli:main"
+leadgen-bot = "leadgen.telegram_bot_cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
