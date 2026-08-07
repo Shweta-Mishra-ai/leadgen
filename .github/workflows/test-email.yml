@@ -1,0 +1,45 @@
+name: Test Email Delivery
+
+# Manual-only smoke test for the Gmail/SMTP outreach path (used by
+# /autoemail, /email and /super in the Telegram bot). Never runs on a
+# schedule — sending a real email should always be a deliberate action.
+on:
+  workflow_dispatch:
+    inputs:
+      to:
+        description: >
+          Recipient address for a live test email. Leave blank to only test
+          the SMTP login (no email sent). Use "self" to send it to the
+          configured GMAIL_ADDRESS.
+        required: false
+        default: ""
+
+jobs:
+  test-email:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: 'pip'
+
+      - name: Install package
+        run: pip install -e .
+
+      - name: Run SMTP / send test
+        env:
+          GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          SENDER_NAME: ${{ secrets.SENDER_NAME }}
+          TO_INPUT: ${{ inputs.to }}
+        run: |
+          set -euo pipefail
+          if [ -z "$TO_INPUT" ]; then
+            leadgen-test-email
+          elif [ "$TO_INPUT" = "self" ]; then
+            leadgen-test-email --to "$GMAIL_ADDRESS"
+          else
+            leadgen-test-email --to "$TO_INPUT"
+          fi

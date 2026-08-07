@@ -5,13 +5,26 @@ on:
     - cron: '30 4 * * *'   # 10:00 AM IST daily (cron runs in UTC)
   workflow_dispatch:        # manual trigger from the Actions tab
 
+# Without this the GITHUB_TOKEN is read-only and the commit step below
+# fails with a 403, which is what silently wiped the lead database on
+# every run: the DB never made it back to the repo, so each morning the
+# pipeline started from empty and re-reported yesterday's leads as new.
+permissions:
+  contents: write
+
+# The bot poller commits to the same branch. Let them queue instead of
+# racing each other into a rejected push.
+concurrency:
+  group: leadgen-db-write
+  cancel-in-progress: false
+
 jobs:
   run-pipeline:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
           cache: 'pip'
@@ -23,6 +36,7 @@ jobs:
         env:
           XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
           TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
           APIFY_API_TOKEN: ${{ secrets.APIFY_API_TOKEN }}
           APIFY_TWITTER_COOKIE: ${{ secrets.APIFY_TWITTER_COOKIE }}
@@ -42,11 +56,26 @@ jobs:
 
       - name: Commit updated database (so tomorrow's run doesn't repeat leads)
         run: |
+          set -euo pipefail
           git config user.name "leadgen-bot"
           git config user.email "actions@github.com"
-          git add -f leads.db leads.csv || true
-          git commit -m "Daily lead update $(date -u +%Y-%m-%d)" || echo "nothing to commit"
-          git push || echo "nothing to push"
+          git add leads.db leads.csv
+          if git diff --cached --quiet; then
+            echo "No database changes to commit."
+            exit 0
+          fi
+          git commit -m "Daily lead update $(date -u +%Y-%m-%d)"
+          # Another job may have pushed while the pipeline was running.
+          for attempt in 1 2 3; do
+            if git push; then
+              echo "Pushed on attempt $attempt."
+              exit 0
+            fi
+            echo "Push rejected, rebasing and retrying (attempt $attempt)..."
+            git pull --rebase --autostash
+          done
+          echo "::error::Failed to push the lead database after 3 attempts."
+          exit 1
 
       - name: Upload report as workflow artifact (backup to Telegram)
         if: always()
@@ -55,3 +84,18 @@ jobs:
           name: leads-report
           path: leads_report_*.xlsx
           retention-days: 30
+
+      # A daily job you don't watch is only useful if it shouts when it
+      # breaks. The previous version masked every failure with `|| echo`.
+      - name: Alert on Telegram if the run failed
+        if: failure()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          curl -sS -X POST \
+            "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -d "chat_id=${TELEGRAM_CHAT_ID}" \
+            -d "disable_web_page_preview=true" \
+            -d "text=🚨 Daily Lead Pipeline FAILED. Logs: ${RUN_URL}"

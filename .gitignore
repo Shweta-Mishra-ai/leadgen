@@ -9,8 +9,14 @@ venv/
 htmlcov/
 .env
 *.db
-leads.csv
 leads_report_*.xlsx
+
+# leads.db / leads.csv are deliberately NOT ignored: the daily workflow
+# runs on an ephemeral runner, so committing them back is what gives the
+# pipeline its memory. Without this, dedup resets every night and every
+# lead looks "new" again.
+!leads.db
+!leads.csv
 seen_ids.txt
 dist/
 build/

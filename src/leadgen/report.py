@@ -146,20 +146,47 @@ def generate_report(settings: Settings, store: LeadStore) -> str:
         logger.warning("no leads in store, nothing to report")
         raise ValueError("No leads found — run the pipeline first")
 
-    # Clean & Select Lead Columns
-    clean_leads = []
-    for row in all_leads:
-        clean_leads.append({
-            "Score": row.get("score", 0),
-            "Source": row.get("source", ""),
-            "Title": row.get("title", ""),
-            "URL": row.get("url", ""),
-            "Snippet": row.get("snippet", ""),
-            "Created": row.get("created", ""),
-            "Found At": row.get("found_at", ""),
-        })
+    today = datetime.now(UTC).strftime("%Y-%m-%d")
 
+    def _clean(rows: list[dict]) -> list[dict]:
+        return [
+            {
+                "Score": row.get("score", 0),
+                "Source": row.get("source", ""),
+                "Title": row.get("title", ""),
+                "URL": row.get("url", ""),
+                "Snippet": row.get("snippet", ""),
+                "Created": row.get("created", ""),
+                "Found At": row.get("found_at", ""),
+            }
+            for row in rows
+        ]
+
+    clean_leads = _clean(all_leads)
     df = pd.DataFrame(clean_leads)
+
+    # "New Today" is the sheet that actually gets read every morning —
+    # everything else is history. Only meaningful once the DB survives
+    # between runs; with an ephemeral DB it just equals All Leads.
+    new_today = _clean(store.leads_found_on(today))
+    new_today_df = pd.DataFrame(new_today) if new_today else pd.DataFrame(
+        columns=["Score", "Source", "Title", "URL", "Snippet", "Created", "Found At"]
+    )
+
+    outreach = [
+        {
+            "Sent At": log.get("sent_at", ""),
+            "Recipient": log.get("recipient_email", ""),
+            "Subject": log.get("subject", ""),
+            "Status": log.get("status", ""),
+            "Follow-Up Stage": log.get("followup_stage", 0),
+            "Lead URL": log.get("lead_url", ""),
+        }
+        for log in store.all_outreach_logs()
+    ]
+    outreach_df = pd.DataFrame(outreach) if outreach else pd.DataFrame(
+        columns=["Sent At", "Recipient", "Subject", "Status", "Follow-Up Stage", "Lead URL"]
+    )
 
     drafts = []
     client, model = _get_draft_client_and_model(settings)
@@ -181,12 +208,13 @@ def generate_report(settings: Settings, store: LeadStore) -> str:
         columns=["Score", "Source", "Title", "URL", "Outreach Draft Note"]
     )
 
-    today = datetime.now(UTC).strftime("%Y-%m-%d")
     report_path = f"leads_report_{today}.xlsx"
 
     with pd.ExcelWriter(report_path, engine="openpyxl") as writer:
-        df.to_excel(writer, sheet_name="Leads", index=False)
+        new_today_df.to_excel(writer, sheet_name="New Today", index=False)
+        df.to_excel(writer, sheet_name="All Leads", index=False)
         drafts_df.to_excel(writer, sheet_name="Drafts", index=False)
+        outreach_df.to_excel(writer, sheet_name="Outreach Log", index=False)
 
     # Format Excel with openpyxl styling & clickable hyperlinks
     try:
@@ -195,12 +223,16 @@ def generate_report(settings: Settings, store: LeadStore) -> str:
         logger.warning("Excel styling application warning: %s", e)
 
     # Build Rich Telegram Summary Message
-    top_5 = clean_leads[:5]
+    # Lead with today's finds — that's the actionable part; the full
+    # history is there in the attachment for anyone who wants it.
+    top_5 = (new_today or clean_leads)[:5]
+    heading = "🆕 Top 5 New Today:" if new_today else "🌟 Top 5 Scored Leads:"
     summary_msg = [
         f"📊 <b>Daily Lead Report — {today}</b>",
-        f"<b>Total Leads:</b> {len(clean_leads)} | <b>Drafts Ready:</b> {len(drafts_df)}",
+        f"<b>New Today:</b> {len(new_today)} | <b>Total Leads:</b> {len(clean_leads)}",
+        f"<b>Drafts Ready:</b> {len(drafts_df)} | <b>Outreach Sent:</b> {len(outreach_df)}",
         "",
-        "<b>🌟 Top 5 Scored Leads:</b>",
+        f"<b>{heading}</b>",
     ]
     for idx, lead in enumerate(top_5, 1):
         title = html.escape(str(lead['Title']))

@@ -43,6 +43,15 @@ CREATE TABLE IF NOT EXISTS outreach_logs (
     followup_stage INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_outreach_sent_at ON outreach_logs(sent_at DESC);
+
+-- Small key/value scratch space that has to outlive a single process.
+-- Currently holds the Telegram getUpdates offset: the bot runs as a
+-- short-lived cron job, so without persisting the offset every run would
+-- re-process the same 24h of commands Telegram still has queued.
+CREATE TABLE IF NOT EXISTS bot_state (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
 """
 
 
@@ -110,6 +119,32 @@ class LeadStore:
                 "SELECT * FROM leads ORDER BY score DESC, found_at DESC"
             ).fetchall()
             return [dict(r) for r in rows]
+
+    def leads_found_on(self, day: str) -> list[dict]:
+        """Leads first seen on a given UTC day ('YYYY-MM-DD').
+
+        found_at is an ISO timestamp, so a prefix match on the date is
+        enough and still uses the found_at index.
+        """
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT * FROM leads WHERE found_at LIKE ? ORDER BY score DESC, found_at DESC",
+                (f"{day}%",),
+            ).fetchall()
+            return [dict(r) for r in rows]
+
+    def get_state(self, key: str, default: str | None = None) -> str | None:
+        with self._connect() as conn:
+            row = conn.execute("SELECT value FROM bot_state WHERE key = ?", (key,)).fetchone()
+            return row["value"] if row else default
+
+    def set_state(self, key: str, value: str) -> None:
+        with self._connect() as conn:
+            conn.execute(
+                "INSERT INTO bot_state (key, value) VALUES (?, ?) "
+                "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                (key, str(value)),
+            )
 
     def get_lead_by_id(self, lead_id: int) -> dict | None:
         with self._connect() as conn:

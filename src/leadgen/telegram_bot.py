@@ -7,12 +7,14 @@ import time
 import requests
 
 from leadgen.config import Settings
-from leadgen.notify import send_telegram_message
+from leadgen.notify import send_telegram_file, send_telegram_message
 from leadgen.pipeline import score_lead
 from leadgen.sources import DuckDuckGoSource
 from leadgen.storage import LeadStore
 
 logger = logging.getLogger("leadgen.telegram_bot")
+
+OFFSET_KEY = "telegram_update_offset"
 
 
 class TelegramBot:
@@ -20,7 +22,12 @@ class TelegramBot:
         self.settings = settings
         self.store = store
         self.bot_token = settings.telegram_bot_token
-        self.offset = 0
+        # Survives across processes so a cron-driven run doesn't replay the
+        # last 24h of commands Telegram still has queued.
+        try:
+            self.offset = int(self.store.get_state(OFFSET_KEY, "0") or 0)
+        except (ValueError, TypeError):
+            self.offset = 0
 
     def is_configured(self) -> bool:
         return bool(self.bot_token)
@@ -121,6 +128,32 @@ class TelegramBot:
                 )
 
             send_telegram_message(self.bot_token, str(chat_id), "\n".join(lines), parse_mode="HTML")
+
+        elif command == "/report":
+            send_telegram_message(
+                self.bot_token,
+                str(chat_id),
+                "📑 Building your Excel report (New Today / All Leads / Drafts / Outreach Log)...",
+            )
+            from leadgen.report import generate_report
+
+            try:
+                path = generate_report(self.settings, self.store)
+            except ValueError as e:
+                # "no leads yet" — expected state, not a crash
+                send_telegram_message(self.bot_token, str(chat_id), f"⚠️ {e}")
+                return
+
+            # generate_report already delivers to the configured report chat.
+            # If the request came from a different chat, send it there too.
+            if str(chat_id) != str(self.settings.telegram_chat_id or ""):
+                send_telegram_file(
+                    self.bot_token,
+                    str(chat_id),
+                    path,
+                    caption=f"📁 <b>{path}</b>",
+                    parse_mode="HTML",
+                )
 
         elif command == "/outreach":
             logs = self.store.all_outreach_logs()
@@ -393,22 +426,56 @@ class TelegramBot:
 
         url = f"https://api.telegram.org/bot{self.bot_token}/getUpdates"
         try:
-            resp = requests.get(url, params={"offset": self.offset, "timeout": 5}, timeout=10)
+            resp = requests.get(url, params={"offset": self.offset, "timeout": 5}, timeout=30)
             if resp.status_code != 200:
+                logger.error("getUpdates returned HTTP %s: %s", resp.status_code, resp.text[:200])
                 return 0
-            data = resp.json()
-            updates = data.get("result", [])
-            for update in updates:
-                self.offset = update["update_id"] + 1
-                msg = update.get("message", {})
-                text = msg.get("text", "")
-                chat_id = msg.get("chat", {}).get("id")
-                if text and chat_id:
-                    self.handle_command(str(chat_id), text)
-            return len(updates)
+            updates = resp.json().get("result", [])
         except Exception as e:  # noqa: BLE001
             logger.error("Error polling Telegram updates: %s", e)
             return 0
+
+        for update in updates:
+            self.offset = update["update_id"] + 1
+            self.store.set_state(OFFSET_KEY, str(self.offset))
+
+            msg = update.get("message", {})
+            text = msg.get("text", "")
+            chat_id = msg.get("chat", {}).get("id")
+            if not (text and chat_id):
+                continue
+
+            # One bad command must not swallow the rest of the batch, and
+            # must not leave the user staring at silence — the old code let
+            # any exception abort the whole loop with no reply sent.
+            try:
+                self.handle_command(str(chat_id), text)
+            except Exception as e:
+                logger.exception("command %r failed", text)
+                send_telegram_message(
+                    self.bot_token,
+                    str(chat_id),
+                    f"❌ Command failed: <code>{html.escape(str(e))}</code>",
+                    parse_mode="HTML",
+                )
+
+        return len(updates)
+
+    def run_once(self) -> int:
+        """Drain whatever is queued and return. Used by the cron workflow,
+        which has no long-lived process to hold a polling loop open."""
+        logger.info("Telegram Bot draining pending updates (one-shot mode)...")
+        total = 0
+        # Telegram returns at most 100 updates per call; keep going until
+        # the queue is actually empty, but stop early so a flood can't run
+        # the job past its budget.
+        for _ in range(10):
+            count = self.process_updates()
+            total += count
+            if count == 0:
+                break
+        logger.info("Processed %d update(s)", total)
+        return total
 
     def run_polling(self) -> None:
         logger.info("Telegram Bot started long polling...")
