@@ -7,17 +7,40 @@ import requests
 logger = logging.getLogger("leadgen.notify")
 
 
+def send_telegram_message(bot_token: str | None, chat_id: str | None,
+                          text: str, parse_mode: str = "HTML", timeout: int = 30) -> bool:
+    if not bot_token or not chat_id:
+        logger.info("Telegram not configured, skipping message delivery")
+        return False
+    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+    try:
+        resp = requests.post(
+            url,
+            data={"chat_id": chat_id, "text": text, "parse_mode": parse_mode, "disable_web_page_preview": True},
+            timeout=timeout,
+        )
+        resp.raise_for_status()
+        return True
+    except Exception as e:  # noqa: BLE001
+        logger.error("Telegram message delivery failed: %s", e)
+        return False
+
+
 def send_telegram_file(bot_token: str | None, chat_id: str | None,
-                        filepath: str, caption: str, timeout: int = 30) -> bool:
+                        filepath: str, caption: str = "", parse_mode: str = "HTML", timeout: int = 30) -> bool:
     if not bot_token or not chat_id:
         logger.info("Telegram not configured, skipping delivery")
         return False
     url = f"https://api.telegram.org/bot{bot_token}/sendDocument"
     try:
+        data = {"chat_id": chat_id}
+        if caption:
+            data["caption"] = caption
+            data["parse_mode"] = parse_mode
         with open(filepath, "rb") as f:
             resp = requests.post(
                 url,
-                data={"chat_id": chat_id, "caption": caption},
+                data=data,
                 files={"document": f},
                 timeout=timeout,
             )
