@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import sqlite3
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -15,6 +16,7 @@ import pytest
 from leadgen.config import Settings
 from leadgen.models import ScoredLead
 from leadgen.sources.apify_source import _run_field
+from leadgen.storage import LeadStore
 from leadgen.telegram_bot import OFFSET_KEY, TelegramBot
 
 
@@ -201,3 +203,59 @@ def test_run_field_reads_both_client_shapes(run):
 
 def test_run_field_returns_default_when_absent():
     assert _run_field({}, "defaultDatasetId", "default_dataset_id", "fallback") == "fallback"
+
+
+# --- 5. outreach_logs schema migration ------------------------------------
+
+def test_log_outreach_works_against_a_pre_followup_stage_db(tmp_path):
+    """Reproduces the real crash: a leads.db created before followup_stage
+    existed in SCHEMA has an outreach_logs table without that column.
+    CREATE TABLE IF NOT EXISTS silently no-ops on an existing table, so
+    without an explicit migration this stays broken forever — it doesn't
+    self-heal just because the code was upgraded.
+    """
+    db_path = str(tmp_path / "legacy.db")
+    conn = sqlite3.connect(db_path)
+    conn.executescript(
+        """
+        CREATE TABLE leads (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            url_hash TEXT NOT NULL UNIQUE,
+            source TEXT NOT NULL,
+            title TEXT NOT NULL,
+            url TEXT NOT NULL,
+            snippet TEXT NOT NULL,
+            score INTEGER NOT NULL,
+            created TEXT,
+            found_at TEXT NOT NULL
+        );
+        CREATE TABLE outreach_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            lead_url TEXT NOT NULL,
+            recipient_email TEXT NOT NULL,
+            subject TEXT NOT NULL,
+            body TEXT NOT NULL,
+            sent_at TEXT NOT NULL,
+            status TEXT NOT NULL
+        );
+        """
+    )
+    conn.commit()
+    conn.close()
+
+    # Opening a LeadStore against this legacy file must migrate it in
+    # place, not just work for fresh databases.
+    store = LeadStore(db_path)
+
+    store.log_outreach("https://example.com", "client@example.com", "Subj", "Body", status="sent")
+
+    logs = store.all_outreach_logs()
+    assert len(logs) == 1
+    assert logs[0]["followup_stage"] == 0
+
+
+def test_init_schema_is_idempotent_on_an_already_migrated_db(temp_store):
+    # Re-opening a DB that already has the column must not error.
+    temp_store.log_outreach("https://example.com", "a@b.com", "S", "B")
+    LeadStore(temp_store.db_path)
+    assert len(temp_store.all_outreach_logs()) == 1

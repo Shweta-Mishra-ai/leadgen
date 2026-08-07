@@ -74,10 +74,19 @@ NOISE_DOMAINS = {
 # Listicles, vendor docs, and "how to" guides match keywords well but
 # aren't leads — someone publishing "10 Strategies to Reduce LLM Costs"
 # isn't asking to hire anyone.
+#
+# The "and other X websites" / "hire top" / "hire the best" entries were
+# added after a real report run: "Writers Work, Upwork, and other
+# freelance writer websites" and "Hire Top Web Copywriters | Technical
+# Content Writers" (an agency's own marketing page, not a hiring post)
+# both out-scored genuine "looking for a freelancer... DM me" hiring
+# posts, because pure niche-keyword density outweighed hiring intent.
 CONTENT_NOISE_PHRASES = [
     "best ", "top 10", "top 5", " vs ", "how to ", "guide to", "guide:",
     "techniques", "strategies", "overview", "documentation", "docs",
     " ways to", "proven ways", "tutorial", "course", "github repository", "awesome-",
+    "and other freelance", "and other websites", "hire top", "hire the best",
+    "marketplace", "platform for freelancers",
 ]
 
 # Reddit/X posts are individuals talking, not marketing pages — genuine
@@ -105,10 +114,20 @@ def score_lead(raw: RawLead) -> int:
     hiring_hits = sum(1 for kw in HIRING_SIGNAL_KEYWORDS if kw in text)
     noise_hits = sum(1 for phrase in CONTENT_NOISE_PHRASES if phrase in title_lower)
 
-    score = niche_hits * 2 + hiring_hits - (noise_hits * 3)
+    # Hiring intent is the actual signal we care about — niche keywords
+    # alone just mean the topic came up, which r/AskProgramming-style
+    # career-advice threads do constantly ("How much SQL should a Data
+    # Analyst know?") without anyone hiring anyone. Weighting hiring_hits
+    # well above niche_hits, instead of the reverse, is what separates
+    # those from an actual "looking for a freelancer... DM me" post.
+    score = niche_hits * 1 + hiring_hits * 3 - (noise_hits * 3)
 
-    if raw.source.startswith(PLATFORM_SOURCE_PREFIXES):
-        score += 2  # genuine individual post, weight it up
+    # Individual platform posts (Reddit/X) only earn the "genuine person,
+    # not a marketing page" bonus when they also show hiring intent —
+    # applying it unconditionally is what let plain discussion threads
+    # outscore vendor noise on niche-keyword count alone.
+    if raw.source.startswith(PLATFORM_SOURCE_PREFIXES) and hiring_hits > 0:
+        score += 2
 
     return max(score, 0)
 
