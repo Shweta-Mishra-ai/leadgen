@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/banner_animation.svg" alt="LeadGen Animated SVG Banner" width="100%">
+</p>
+
 # LeadGen - Enterprise Lead Generation Pipeline & Interactive Telegram Bot
 
 ![CI](https://github.com/Shweta-Mishra-ai/leadgen/actions/workflows/ci.yml/badge.svg)
