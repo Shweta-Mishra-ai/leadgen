@@ -1,0 +1,72 @@
+name: Telegram Bot Poller
+
+# Replaces the n8n / always-on server setup. The bot has no long-lived
+# process anywhere, so instead of holding a polling loop open we wake up
+# on a schedule, drain whatever commands are queued, and exit.
+#
+# Trade-off worth knowing: GitHub's shortest cron interval is 5 minutes
+# and scheduled runs are frequently delayed under load, so a reply can
+# take 5-15 minutes. If you need instant replies, switch to Telegram
+# webhook mode instead — see README.
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: leadgen-db-write
+  cancel-in-progress: false
+
+jobs:
+  poll:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: 'pip'
+
+      - name: Install package
+        run: pip install -e .
+
+      - name: Drain pending Telegram commands
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          SENDER_NAME: ${{ secrets.SENDER_NAME }}
+        run: leadgen-bot --once
+
+      # /search inserts leads and the update offset lives in the DB, so
+      # both have to be committed or the next run replays the same
+      # commands and re-discovers the same leads.
+      - name: Commit any state the bot changed
+        run: |
+          set -euo pipefail
+          git config user.name "leadgen-bot"
+          git config user.email "actions@github.com"
+          git add leads.db leads.csv
+          if git diff --cached --quiet; then
+            echo "No bot state changes to commit."
+            exit 0
+          fi
+          git commit -m "Bot state update $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          for attempt in 1 2 3; do
+            if git push; then
+              echo "Pushed on attempt $attempt."
+              exit 0
+            fi
+            echo "Push rejected, rebasing and retrying (attempt $attempt)..."
+            git pull --rebase --autostash
+          done
+          echo "::error::Failed to push bot state after 3 attempts."
+          exit 1

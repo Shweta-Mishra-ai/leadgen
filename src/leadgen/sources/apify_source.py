@@ -28,6 +28,22 @@ logger = logging.getLogger("leadgen.sources.apify")
 DEFAULT_ACTOR_ID = "automation-lab/twitter-scraper"
 
 
+def _run_field(run, camel: str, snake: str, default=None):
+    """Read a field off an Actor run across apify-client versions.
+
+    1.x returned a plain dict with camelCase keys; 3.x returns an ActorRun
+    object with snake_case attributes. Reading `run["defaultDatasetId"]`
+    against 3.x raises "'Run' object is not subscriptable" and silently
+    cost us the entire Twitter/X source.
+    """
+    if isinstance(run, dict):
+        return run.get(camel, run.get(snake, default))
+    for attr in (snake, camel):
+        if hasattr(run, attr):
+            return getattr(run, attr)
+    return default
+
+
 class ApifySource(LeadSource):
     name = "apify"
 
@@ -89,8 +105,8 @@ class ApifySource(LeadSource):
             logger.error("source=apify actor run returned no result")
             return []
 
-        run_status = run.get("status", "UNKNOWN")
-        if run_status != "SUCCEEDED":
+        run_status = str(_run_field(run, "status", "status", "UNKNOWN"))
+        if not run_status.endswith("SUCCEEDED"):  # 3.x may return an enum repr
             logger.warning(
                 "source=apify run finished with status=%s (not SUCCEEDED) — "
                 "results may be partial or empty. Check the Apify Console "
@@ -99,9 +115,14 @@ class ApifySource(LeadSource):
                 run_status,
             )
 
+        dataset_id = _run_field(run, "defaultDatasetId", "default_dataset_id")
+        if not dataset_id:
+            logger.error("source=apify run has no dataset id (run=%r)", run)
+            return []
+
         results = []
         try:
-            items = client.dataset(run["defaultDatasetId"]).list_items().items
+            items = client.dataset(dataset_id).list_items().items
         except Exception as e:  # noqa: BLE001
             logger.error("source=apify dataset fetch failed: %s", e)
             return []

@@ -10,6 +10,18 @@ from leadgen.sources.base import LeadSource
 logger = logging.getLogger("leadgen.sources.gemini")
 
 DEFAULT_MODEL = "gemini-2.5-flash"
+
+# Which model names an API key can actually reach varies by key, project
+# and region — the configured default was returning a hard 404 in
+# production, killing the whole Gemini source. Rather than hardcode one
+# guess, walk a list and stick with the first that answers.
+FALLBACK_MODELS = [
+    "gemini-2.5-flash",
+    "gemini-2.0-flash",
+    "gemini-flash-latest",
+    "gemini-2.5-flash-lite",
+]
+
 GEMINI_URL_TEMPLATE = (
     "https://generativelanguage.googleapis.com/v1beta/models/"
     "{model}:generateContent"
@@ -32,10 +44,13 @@ class GeminiSource(LeadSource):
     def is_configured(self) -> bool:
         return bool(self.api_key)
 
-    def _fetch_topic(self, topic: str) -> list[dict]:
-        url = GEMINI_URL_TEMPLATE.format(model=self.model)
-        resp = requests.post(
-            url,
+    def _candidate_models(self) -> list[str]:
+        ordered = [self.model] + [m for m in FALLBACK_MODELS if m != self.model]
+        return ordered
+
+    def _post(self, model: str, topic: str):
+        return requests.post(
+            GEMINI_URL_TEMPLATE.format(model=model),
             headers={"x-goog-api-key": self.api_key, "Content-Type": "application/json"},
             json={
                 "contents": [{"parts": [{"text": PROMPT_TEMPLATE.format(topic=topic)}]}],
@@ -44,6 +59,21 @@ class GeminiSource(LeadSource):
             },
             timeout=self.timeout_seconds,
         )
+
+    def _fetch_topic(self, topic: str) -> list[dict]:
+        resp = None
+        for model in self._candidate_models():
+            resp = self._post(model, topic)
+            if resp.status_code != 404:
+                if model != self.model:
+                    logger.warning(
+                        "gemini model %r returned 404, falling back to %r for the rest of this run",
+                        self.model, model,
+                    )
+                    self.model = model  # don't re-pay the 404 on every topic
+                break
+            logger.debug("gemini model %r not available (404), trying next", model)
+
         if resp.status_code >= 500:
             # transient — let the retry wrapper handle it
             raise ConnectionError(f"gemini 5xx: {resp.status_code}")

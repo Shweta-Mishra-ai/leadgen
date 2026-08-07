@@ -22,7 +22,7 @@ graph TD
     B --> C["📊 Deduplication & SQLite Database<br/>(leads.db)"]
     C --> D["🧠 Multi-Factor Lead Scorer<br/>(Category Weighting & Urgency Evaluation)"]
     D --> E["🤖 Super Agent Multi-Role Pipeline<br/>(Profiler ➔ Copywriter ➔ Auditor ➔ Finder)"]
-    E --> F["⚡ Real-Time Webhook Engine<br/>(n8n, Make, Slack, Discord)"]
+    E --> F["⚡ Real-Time Webhook Engine<br/>(Slack, Discord, Zapier, Make)"]
     E --> G["📧 Direct Gmail Outreach & AI Humanizer<br/>(Hello Greeting, Zero AI Slots, No Spam Links)"]
     G --> H["💬 Telegram Interactive Bot CLI<br/>(Real-Time Alerts & Excel Report Delivery)"]
 ```
@@ -86,7 +86,7 @@ leadgen/
 │       ├── tech_profiler.py      # Client Tech Stack Keyword Detector
 │       ├── telegram_bot.py       # Telegram Interactive Bot Listener & Commands
 │       ├── telegram_bot_cli.py   # CLI Entrypoint for Telegram Bot Service
-│       ├── webhook.py            # Real-Time Webhook Dispatcher (n8n/Slack)
+│       ├── webhook.py            # Real-Time Webhook Dispatcher (Slack/Discord/Zapier)
 │       └── sources/              # Search & API Source Adapters
 │           ├── __init__.py
 │           ├── apify_source.py
@@ -114,7 +114,7 @@ Create a `.env` file in the root directory with the following variables:
 | `GMAIL_ADDRESS` | Optional | Your personal Gmail address (`your_name@gmail.com`) for direct email outreach |
 | `GMAIL_APP_PASSWORD` | Optional | 16-character Google App Password generated via Google Account Security |
 | `SENDER_NAME` | Optional | Custom display name for email outreach (e.g. `Shweta Mishra`) |
-| `WEBHOOK_URL` | Optional | Webhook endpoint URL (n8n, Make, Slack, Discord) for high-score lead alerts |
+| `WEBHOOK_URL` | Optional | Webhook endpoint URL (Slack, Discord, Zapier, Make) for high-score lead alerts |
 | `TELEGRAM_BOT_TOKEN` | Optional | Telegram Bot API Token for interactive chat commands and alerts |
 | `TELEGRAM_CHAT_ID` | Optional | Target Telegram Chat ID for automated report delivery |
 | `XAI_API_KEY` | Optional | xAI Grok API Key (`console.x.ai`) for live search grounding |
@@ -259,73 +259,36 @@ Leads are fetched across 5 specialized categories:
 
 ---
 
-## 🔗 n8n Integration — Render.com Deployment (Free, 24/7)
+## ⏰ Scheduling — GitHub Actions Cron (Free, No Server)
 
-LeadGen automatically pushes high-score leads to a **self-hosted n8n** instance via webhook. No n8n account needed — deploy it yourself on Render.com for free.
+LeadGen no longer depends on n8n or any self-hosted service. Everything runs on two
+scheduled GitHub Actions workflows, both free on a public/private repo within the
+standard Actions minutes quota:
 
-### Architecture
-```
-LeadGen Pipeline → WEBHOOK_URL → n8n (Render.com) → Slack / Google Sheets / Gmail / Discord
-```
+| Workflow | Schedule | Does |
+| :--- | :--- | :--- |
+| [`.github/workflows/daily-pipeline.yml`](.github/workflows/daily-pipeline.yml) | `30 4 * * *` (10:00 AM IST) | Runs the pipeline, generates + sends the Excel report, commits `leads.db`/`leads.csv` back to the repo |
+| [`.github/workflows/bot-poller.yml`](.github/workflows/bot-poller.yml) | every 10 minutes | Drains queued Telegram commands (`leadgen-bot --once`) and commits any resulting DB changes |
 
-### Quick Deploy to Render.com
+Both need `permissions: contents: write` (already set in the workflow files) so the
+commit-back step can push — without it every run starts from an empty database and
+re-reports the same leads as "new" every day.
 
-1. Go to **https://render.com** → **New Web Service** → **Deploy an existing image**
-2. Image: `docker.n8n.io/n8nio/n8n` | Port: `5678` | Plan: **Free**
-3. Set these Environment Variables in Render dashboard:
+**Why the database is committed to the repo:** GitHub-hosted runners are ephemeral —
+nothing survives between runs except what's in the checked-out repo. Committing
+`leads.db`/`leads.csv` after each run is what gives the pipeline memory (dedup,
+"New Today" vs. history) without paying for a database host.
 
-| Variable | Value |
-| :--- | :--- |
-| `N8N_HOST` | `your-service.onrender.com` |
-| `N8N_PROTOCOL` | `https` |
-| `N8N_PORT` | `5678` |
-| `N8N_BASIC_AUTH_ACTIVE` | `true` |
-| `N8N_BASIC_AUTH_USER` | `admin` |
-| `N8N_BASIC_AUTH_PASSWORD` | `YourStrongPassword` |
-| `WEBHOOK_URL` | `https://your-service.onrender.com/` |
-| `GENERIC_TIMEZONE` | `Asia/Kolkata` |
+**Bot reply latency:** the poller runs every 10 minutes and GitHub's scheduler can lag
+further under load, so a Telegram command may take 5–15 minutes to get a reply. If you
+need instant replies, switch to Telegram webhook mode (point Telegram's `setWebhook` at
+a small serverless endpoint that calls `TelegramBot.handle_command` directly) instead of
+polling — the poller is optimized for zero infrastructure, not latency.
 
-4. After deploy, open n8n → **New Workflow** → Add **Webhook** node → copy URL
-5. Add to LeadGen `.env`:
-```env
-WEBHOOK_URL=https://your-service.onrender.com/webhook/lead-alert
-```
+To change the schedule, edit the `cron:` line in either workflow (both use UTC).
 
-> 📁 Full deployment guide: [`n8n/RENDER_DEPLOY.md`](n8n/RENDER_DEPLOY.md) | Docker Compose: [`n8n/docker-compose.yml`](n8n/docker-compose.yml)
-
-### Webhook Payload Example
-```json
-{
-  "event": "high_score_lead_found",
-  "timestamp": "2026-08-07T11:00:00Z",
-  "lead": {
-    "title": "Need Python dev for AI automation",
-    "score": 92,
-    "email_found": "client@company.com",
-    "tech_stack": ["Python", "AI/LLM", "Cloud/DevOps"]
-  }
-}
-```
-
-### n8n Node variables
-- `{{ $json.lead.title }}` → Lead title
-- `{{ $json.lead.score }}` → Score number
-- `{{ $json.lead.email_found }}` → Client email
-- `{{ $json.lead.tech_stack }}` → Tech stack array
-
----
-
-## ⏰ UptimeRobot — Keep Render.com n8n Awake (Free)
-
-Render free tier sleeps after 15 min of no traffic. UptimeRobot pings it every 5 minutes.
-
-1. Sign up free at **https://uptimerobot.com**
-2. **Add New Monitor** → Type: `HTTP(s)`
-3. URL: `https://your-service.onrender.com`
-4. Interval: **5 minutes**
-5. Click **Create Monitor** ✅
-
-n8n will now stay alive 24/7 at zero cost.
+If you still want leads pushed to Slack/Discord/Zapier/Make in real time, set
+`WEBHOOK_URL` — see the payload format in [`webhook.py`](src/leadgen/webhook.py).
 
 ---
 
