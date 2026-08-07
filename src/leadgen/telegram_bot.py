@@ -36,6 +36,7 @@ class TelegramBot:
                 "🤖 <b>LeadGen Interactive Telegram Bot</b>\n\n"
                 "Available Commands:\n"
                 "• <b>/search &lt;keyword&gt;</b> — Instant web search for leads\n"
+                "• <b>/autoemail &lt;lead_id&gt;</b> — Auto-find contact email & send humanized Gmail outreach\n"
                 "• <b>/email &lt;lead_id&gt; &lt;recipient_email&gt;</b> — Send humanized, 1-on-1 personalized Gmail outreach\n"
                 "• <b>/outreach</b> — View outreach history & analytics\n"
                 "• <b>/stats</b> — View lead database statistics category-wise\n"
@@ -131,6 +132,81 @@ class TelegramBot:
                     f"   <b>Status:</b> <code>{log['status']}</code> | <i>{log['sent_at'][:10]}</i>\n"
                 )
             send_telegram_message(self.bot_token, str(chat_id), "\n".join(lines), parse_mode="HTML")
+
+        elif command == "/autoemail":
+            if not args:
+                send_telegram_message(
+                    self.bot_token,
+                    str(chat_id),
+                    "⚠️ Usage: <code>/autoemail &lt;lead_id&gt;</code>\nExample: <code>/autoemail 1</code>",
+                    parse_mode="HTML",
+                )
+                return
+
+            try:
+                lead_id = int(args.split()[0])
+            except ValueError:
+                send_telegram_message(self.bot_token, str(chat_id), "❌ Invalid lead_id format.")
+                return
+
+            lead = self.store.get_lead_by_id(lead_id)
+            if not lead:
+                send_telegram_message(self.bot_token, str(chat_id), f"❌ Lead ID {lead_id} not found.")
+                return
+
+            send_telegram_message(
+                self.bot_token,
+                str(chat_id),
+                f"🔎 Searching contact email for lead #{lead_id}...",
+            )
+            from leadgen.email_finder import find_contact_email_for_lead
+            found_email = find_contact_email_for_lead(lead["title"], lead["url"], lead["snippet"])
+
+            if not found_email:
+                send_telegram_message(
+                    self.bot_token,
+                    str(chat_id),
+                    f"⚠️ Could not automatically discover email for lead #{lead_id}.\nPlease specify email using: <code>/email {lead_id} &lt;client@domain.com&gt;</code>",
+                    parse_mode="HTML",
+                )
+                return
+
+            send_telegram_message(
+                self.bot_token,
+                str(chat_id),
+                f"📧 Found contact email: <code>{found_email}</code>. Generating humanized email...",
+                parse_mode="HTML",
+            )
+            from leadgen.email_sender import send_email
+            from leadgen.humanizer import generate_humanized_email
+
+            subj, body = generate_humanized_email(self.settings, lead["title"], lead["snippet"])
+
+            if not self.settings.gmail_address or not self.settings.gmail_app_password:
+                msg = (
+                    f"📝 <b>Humanized Outreach Generated (Not Sent — Gmail Credentials Missing)</b>\n\n"
+                    f"<b>Discovered To:</b> {found_email}\n"
+                    f"<b>Subject:</b> {html.escape(subj)}\n\n"
+                    f"<b>Body:</b>\n{html.escape(body)}\n\n"
+                    f"<i>Add GMAIL_ADDRESS and GMAIL_APP_PASSWORD to enable direct sending.</i>"
+                )
+                send_telegram_message(self.bot_token, str(chat_id), msg, parse_mode="HTML")
+                return
+
+            success = send_email(self.settings, found_email, subj, body)
+            if success:
+                self.store.log_outreach(lead["url"], found_email, subj, body, status="sent")
+                send_telegram_message(
+                    self.bot_token,
+                    str(chat_id),
+                    f"✅ <b>Auto Outreach Sent!</b>\n\n<b>To:</b> {found_email}\n<b>Subject:</b> {html.escape(subj)}",
+                    parse_mode="HTML",
+                )
+            else:
+                self.store.log_outreach(lead["url"], found_email, subj, body, status="failed")
+                send_telegram_message(
+                    self.bot_token, str(chat_id), f"❌ Failed to send email to {found_email}."
+                )
 
         elif command == "/email":
             args_list = args.split()
