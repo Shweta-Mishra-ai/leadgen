@@ -16,7 +16,7 @@ def test_send_lead_webhook_no_url():
 
 def test_send_lead_webhook_success_mocked():
     settings = Settings(_env_file=None)
-    setattr(settings, "webhook_url", "https://example.com/webhook")
+    settings.webhook_url = "https://example.com/webhook"
     with patch("urllib.request.urlopen") as mock_url:
         mock_resp = MagicMock()
         mock_resp.status = 200

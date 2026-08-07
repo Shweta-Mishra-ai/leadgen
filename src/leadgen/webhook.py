@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-import logging
-from typing import Any
-
-import urllib.request
 import json
+import logging
+import urllib.request
+from typing import Any
 
 from leadgen.config import Settings
 
