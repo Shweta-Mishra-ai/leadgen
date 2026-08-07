@@ -62,8 +62,8 @@ class GeminiSource(LeadSource):
             parsed = json.loads(text)
             if isinstance(parsed, list):
                 items.extend(parsed)
-        except Exception:  # noqa: BLE001
-            pass
+        except Exception as e:  # noqa: BLE001
+            logger.debug("gemini text parsing skipped: %s", e)
 
         # 2. Extract groundingMetadata URLs from Google Search Grounding
         try:
@@ -79,8 +79,8 @@ class GeminiSource(LeadSource):
                         "snippet": f"Google Search lead for {topic}",
                         "created": "",
                     })
-        except Exception:  # noqa: BLE001
-            pass
+        except Exception as e:  # noqa: BLE001
+            logger.debug("gemini groundingMetadata parsing skipped: %s", e)
 
         results = []
         for item in items:
